@@ -1,0 +1,9 @@
+[workspace]
+members = [
+	"auction",
+	"match-base",
+	"measure"
+]
+
+[profile.release]
+lto = true

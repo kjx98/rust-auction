@@ -1,0 +1,6 @@
+/target/
+/Data/
+**/*.rs.bk
+Cargo.lock
+sample-data
+.#*

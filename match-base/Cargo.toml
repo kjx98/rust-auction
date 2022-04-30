@@ -1,0 +1,17 @@
+[package]
+name = "match-base"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+static_init = "1.0"
+
+[dev-dependencies]
+bencher = "0.1"
+rand = "0.4"
+
+[[bench]]
+name = "order"
+harness = false
