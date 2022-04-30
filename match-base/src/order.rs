@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 //use static_init::dynamic;
 
-#[derive(Eq)]
+#[derive(Eq, Debug)]
 pub struct Order {
     id:     u64,
     price:  i32,
@@ -206,7 +206,8 @@ mod tests {
         assert_eq!(ord.qty(), 30);
         assert!(ord.fill(10, 10000));
         assert_eq!(ord.remain_qty(), 20);
-        or_maps.remove(&op1);
+        // follow need derived(Debug) w/ Order
+        assert_ne!(or_maps.remove(&op1), None);
         let mut it = or_maps.iter();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 1);
