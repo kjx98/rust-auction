@@ -130,6 +130,8 @@ mod tests {
     use std::collections::BTreeMap;
     use std::cmp::Ordering;
     use static_init::dynamic;
+    use auction_measure::Measure;
+    use rand::Rng;
 
     #[dynamic(lazy)]    //lazy or lesser_lazy are equivalent for thread_local
     static mut NORMAL: u64 = 0;
@@ -209,5 +211,28 @@ mod tests {
         for (_, ord) in or_maps.iter() {
             println!("{}: qty {} @{}", ord.oid(), ord.qty(), ord.price())
         }
+    }
+
+    #[test]
+    fn bench_orderbook_insert() {
+        let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
+        let mut oid: u64 = 0;
+        let mut rng = rand::thread_rng();
+        let mut measure = Measure::start("orderbook bench");
+        const N: u32 = 1_000_000;
+        for _it in 0 .. N {
+            oid += 1;
+            let price = rng.gen::<i32>();
+            let mut qty: u32 = rng.gen::<u32>();
+            let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
+            qty %= 1000;
+            qty += 1;
+            let ord = Box::new(new(oid, 1, b_buy, price, qty));
+            or_maps.insert(ord.to_OidPrice(), ord);
+        }
+        measure.stop();
+        let ns_ops = measure.as_ns() / (N as u64);
+        assert!(ns_ops < 10_000);
+        println!("orderBook insert cost {} ns per Op", ns_ops);
     }
 }
