@@ -194,19 +194,26 @@ mod tests {
         or_maps.insert(or2.to_OidPrice(), Box::new(or2));
         or_maps.insert(or3.to_OidPrice(), Box::new(or3));
         assert_eq!(or_maps.len(), 3);
-        let mut it = or_maps.iter();
+        let mut it = or_maps.iter_mut();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 1);
+        assert_eq!(ord.qty(), 50);
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 0);
+        assert_eq!(ord.qty(), 100);
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 2);
+        assert_eq!(ord.qty(), 30);
+        assert!(ord.fill(10, 10000));
+        assert_eq!(ord.remain_qty(), 20);
         or_maps.remove(&op1);
         let mut it = or_maps.iter();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 1);
         let (_, ord) = it.next().unwrap();
+        assert!(! ord.is_filled() );
         assert_eq!(ord.oid(), 2);
+        assert_eq!(ord.remain_qty(), 20);
 
         for (_, ord) in or_maps.iter() {
             println!("{}: qty {} @{}", ord.oid(), ord.qty(), ord.price())
