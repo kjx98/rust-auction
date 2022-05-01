@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
-use std::sync::Once;
+//use std::sync::Once;
 
-#[derive(Eq, Debug)]
+#[derive(Eq, Clone)]
 pub struct Order {
     id:     u64,
     price:  i32,
@@ -21,11 +21,15 @@ pub struct OidPrice {
     price:  i32,
 }
 
+pub struct OrderPool {
+    len:    u64,
+    v:      std::vec::Vec<Order>,
+}
 
 const MAX_ORDERS: u32 = 60_000_000;
-static mut ORDER_NO: u32 = 0;
-static INIT: Once = Once::new();
+//static INIT: Once = Once::new();
 
+/*
 // init orders db
 fn init_orders() {
 }
@@ -52,17 +56,16 @@ pub fn init_oid() {
         ORDER_NO = 0
     }
 }
-
-pub fn new(sym_idx: u32, buy: bool, price: i32, qty: u32) -> Order {
-    let mut ret = Order {id: 0, price, sym_idx, qty,
-               filled: 0, buy, canceled: false, price_filled: 0
-            };
-    ret.id = new_oid();
-    ret
-}
+*/
 
 
 impl Order {
+    pub const fn new(id: u64, sym_idx: u32, buy: bool, price: i32, qty: u32) -> Order {
+        let ret = Order {id, price, sym_idx, qty,
+                       filled: 0, buy, canceled: false, price_filled: 0
+                    };
+        ret
+    }
     #[allow(non_snake_case)]
     pub fn to_OidPrice(&self) -> OidPrice {
         if self.buy {
@@ -142,12 +145,50 @@ impl PartialOrd for OidPrice {
     }
 }
 
+impl OrderPool {
+    pub fn new() -> OrderPool {
+        OrderPool { len: 0, v: Vec::<Order>::with_capacity(2048) }
+    }
+    pub fn init(&mut self) {
+        self.v.clear();
+        self.len = 0;
+    }
+    pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32) -> Option<&Order> {
+        self.len = self.v.len() as u64;
+        if self.len >= MAX_ORDERS as u64 {
+            None
+        } else {
+            self.v.push(Order::new(self.len+1, sym_idx, buy, price, qty));
+            let res = &self.v[self.len as usize];
+            self.len += 1;
+            Some(res)
+        }
+    }
+    pub fn get_order_mut(&mut self, oid: u64) -> Option<&mut Order> {
+        if oid == 0 || oid as usize > self.v.len() {
+            None
+        } else {
+            let id = oid - 1;
+            Some(&mut self.v[id as usize])
+        }
+    }
+    pub fn get_order(&self, oid: u64) -> Option<&Order> {
+        if oid == 0 || oid as usize > self.v.len() {
+            None
+        } else {
+            let id = oid - 1;
+            Some(&self.v[id as usize])
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::order::new;
-    use crate::order::OidPrice;
-    use crate::order::Order;
-    use crate::order::init_oid;
+    //use super::new;
+    use super::OidPrice;
+    use super::Order;
+    use super::OrderPool;
+    //use super::init_oid;
     use std::collections::BTreeMap;
     use std::cmp::Ordering;
     use std::mem;
@@ -156,11 +197,11 @@ mod tests {
 
     #[test]
     fn order_cmp() {
-        init_oid();
-        let or1=new(1, true, 10000, 100);
-        let or2=new(1, true, 11000, 50);
-        let or3=new(1, true, 10000, 30);
-        let mut or4=new(1, false, 12000, 70);
+        //init_oid();
+        let or1=Order::new(1, 1, true, 10000, 100);
+        let or2=Order::new(2, 1, true, 11000, 50);
+        let or3=Order::new(3, 1, true, 10000, 30);
+        let mut or4=Order::new(4, 1, false, 12000, 70);
         assert!(or1 != or2);
         assert!(or1 != or3);
         let op1=or1.to_OidPrice();
@@ -196,10 +237,10 @@ mod tests {
 
     #[test]
     fn order_btree() {
-        init_oid();
-        let or1=new(1, true, 10000, 100);
-        let or2=new(1, true, 11000, 50);
-        let or3=new(1, true, 10000, 30);
+        //init_oid();
+        let or1=Order::new(1, 1, true, 10000, 100);
+        let or2=Order::new(2, 1, true, 11000, 50);
+        let or3=Order::new(3, 1, true, 10000, 30);
         let op1 = or1.to_OidPrice();
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         or_maps.insert(or1.to_OidPrice(), Box::new(or1));
@@ -220,7 +261,7 @@ mod tests {
         assert!(ord.fill(10, 10000));
         assert_eq!(ord.remain_qty(), 20);
         // follow need derived(Debug) w/ Order
-        assert_ne!(or_maps.remove(&op1), None);
+        assert!(or_maps.remove(&op1) != None);
         let mut it = or_maps.iter();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 2);
@@ -235,24 +276,96 @@ mod tests {
     }
 
     #[test]
+    fn orderpool_btree() {
+        //init_oid();
+        let mut pool = OrderPool::new();
+        let mut or_maps = BTreeMap::<OidPrice, u64>::new();
+        let or1=pool.new_order(1, true, 10000, 100).unwrap();
+        or_maps.insert(or1.to_OidPrice(), or1.oid());
+        assert_eq!(or_maps.len(), 1);
+        let ord=pool.new_order(1, true, 11000, 50).unwrap();
+        or_maps.insert(ord.to_OidPrice(), ord.oid());
+        let ord=pool.new_order(1, true, 10000, 30).unwrap();
+        or_maps.insert(ord.to_OidPrice(), ord.oid());
+        assert_eq!(or_maps.len(), 3);
+        let mut it = or_maps.iter_mut();
+        let (_, oid) = it.next().unwrap();
+        let ord = pool.get_order(*oid).unwrap();
+        assert_eq!(ord.oid(), 2);
+        assert_eq!(ord.qty(), 50);
+        let (_, oid) = it.next().unwrap();
+        let ord = pool.get_order(*oid).unwrap();
+        assert_eq!(ord.oid(), 1);
+        let op1 = ord.to_OidPrice();
+        assert_eq!(ord.qty(), 100);
+        let (_, oid) = it.next().unwrap();
+        let ord = pool.get_order_mut(*oid).unwrap();
+        assert_eq!(ord.oid(), 3);
+        assert_eq!(ord.qty(), 30);
+        assert!(ord.fill(10, 10000));
+        assert_eq!(ord.remain_qty(), 20);
+        // follow need derived(Debug) w/ Order
+        assert!(or_maps.remove(&op1) != None);
+        let mut it = or_maps.iter();
+        let (_, oid) = it.next().unwrap();
+        let ord = pool.get_order(*oid).unwrap();
+        assert_eq!(ord.oid(), 2);
+        let (_, oid) = it.next().unwrap();
+        let ord = pool.get_order(*oid).unwrap();
+        assert!(! ord.is_filled() );
+        assert_eq!(ord.oid(), 3);
+        assert_eq!(ord.remain_qty(), 20);
+
+        for (_, oid) in or_maps.iter() {
+            let ord = pool.get_order(*oid).unwrap();
+            println!("{}: qty {} @{}", ord.oid(), ord.qty(), ord.price())
+        }
+    }
+
+    #[test]
     fn bench_orderbook_insert() {
-        init_oid();
+        //init_oid();
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");
-        const N: u32 = 1_000_000;
+        let mut oid: u64 = 0;
+        const N: u32 = 2_000_000;
         for _it in 0 .. N {
             let price = rng.gen::<i32>();
             let mut qty: u32 = rng.gen::<u32>();
             let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
             qty %= 1000;
             qty += 1;
-            let ord = Box::new(new(1, b_buy, price, qty));
+            oid += 1;
+            let ord = Box::new(Order::new(oid, 1, b_buy, price, qty));
             or_maps.insert(ord.to_OidPrice(), ord);
         }
         measure.stop();
         let ns_ops = measure.as_ns() / (N as u64);
         assert!(ns_ops < 10_000);
         println!("orderBook insert cost {} ns per Op", ns_ops);
+    }
+
+    #[test]
+    fn bench_orderbook_pool_insert() {
+        //init_oid();
+        let mut pool = OrderPool::new();
+        let mut or_maps = BTreeMap::<OidPrice, u64>::new();
+        let mut rng = rand::thread_rng();
+        let mut measure = Measure::start("orderbook bench");
+        const N: u32 = 2_000_000;
+        for _it in 0 .. N {
+            let price = rng.gen::<i32>();
+            let mut qty: u32 = rng.gen::<u32>();
+            let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
+            qty %= 1000;
+            qty += 1;
+            let ord = pool.new_order(1, b_buy, price, qty).unwrap();
+            or_maps.insert(ord.to_OidPrice(), ord.oid());
+        }
+        measure.stop();
+        let ns_ops = measure.as_ns() / (N as u64);
+        assert!(ns_ops < 10_000);
+        println!("orderPool orderBook insert cost {} ns per Op", ns_ops);
     }
 }

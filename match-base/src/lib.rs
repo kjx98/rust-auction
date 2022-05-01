@@ -1,4 +1,5 @@
 pub mod order;
+pub use order::{Order, OidPrice};
 
 #[cfg(test)]
 mod tests {
