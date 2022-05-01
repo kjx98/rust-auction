@@ -14,8 +14,7 @@ cargo bench
 
 ## performance
 
-Benchmark Cross/Continue match (btree for orderBook)
-Cross for 2 million orders, buy/sell half/half
+Benchmark order insert (btree for orderBook)
 <pre>
 running 1 test
 test or_book ... bench:         336 ns/iter (+/- 28)

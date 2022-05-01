@@ -22,7 +22,7 @@ pub struct OidPrice {
 }
 
 
-const MAX_ORDERS: u32 = 20_000_000;
+const MAX_ORDERS: u32 = 60_000_000;
 static mut ORDER_NO: u32 = 0;
 static INIT: Once = Once::new();
 
