@@ -4,7 +4,7 @@ extern crate rand;
 
 use std::collections::BTreeMap;
 use bencher::Bencher;
-use match_base::order::{Order, OrderPool, OidPrice};
+use match_base::{Order, OrderPool, OidPrice};
 use rand::Rng;
 
 fn or_book(bench: &mut Bencher) {

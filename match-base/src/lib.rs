@@ -1,5 +1,5 @@
-pub mod order;
-pub use order::{Order, OidPrice};
+mod order;
+pub use order::{Order, OrderPool, OidPrice};
 
 #[cfg(test)]
 mod tests {
