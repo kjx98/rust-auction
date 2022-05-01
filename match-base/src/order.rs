@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-//use static_init::dynamic;
+use std::sync::Once;
 
 #[derive(Eq, Debug)]
 pub struct Order {
@@ -22,23 +22,43 @@ pub struct OidPrice {
 }
 
 
-//const MAX_ORDERS: u32 = 20000000;
-//#[dynamic(lazy)]    //lazy or lesser_lazy are equivalent for thread_local
-//static mut ORDER_NO: u32 = 0;
+const MAX_ORDERS: u32 = 20_000_000;
+static mut ORDER_NO: u32 = 0;
+static INIT: Once = Once::new();
 
-//lazy_static! {
-//    static ref OrderNo: u32 = 0;
-//}
+// init orders db
+fn init_orders() {
+}
 
-pub const  fn new(oid: u64, sym_idx: u32, buy: bool, price: i32, qty: u32) -> Order {
-//    let ooid = *ORDER_NO.read() + 1;
-//    if ooid <= MAX_ORDERS {
-//        *ORDER_NO.write() = ooid;
-//    }
-    // let oid: u64 = *OrderNo as u64;
-    Order {id: oid, price, sym_idx, qty,
-               filled: 0, buy, canceled: false, price_filled: 0
+fn new_oid() -> u64 {
+    unsafe {
+        INIT.call_once(|| {
+            init_orders();
+        });
+        if ORDER_NO >= MAX_ORDERS {
+            return 0
+        }
+        ORDER_NO += 1;
+        let oid = ORDER_NO as u64;
+        oid
     }
+}
+
+pub fn init_oid() {
+    INIT.call_once(|| {
+        init_orders();
+    });
+    unsafe {
+        ORDER_NO = 0
+    }
+}
+
+pub fn new(sym_idx: u32, buy: bool, price: i32, qty: u32) -> Order {
+    let mut ret = Order {id: 0, price, sym_idx, qty,
+               filled: 0, buy, canceled: false, price_filled: 0
+            };
+    ret.id = new_oid();
+    ret
 }
 
 
@@ -127,29 +147,20 @@ mod tests {
     use crate::order::new;
     use crate::order::OidPrice;
     use crate::order::Order;
+    use crate::order::init_oid;
     use std::collections::BTreeMap;
     use std::cmp::Ordering;
-    use static_init::dynamic;
+    use std::mem;
     use auction_measure::Measure;
     use rand::Rng;
 
-    #[dynamic(lazy)]    //lazy or lesser_lazy are equivalent for thread_local
-    static mut NORMAL: u64 = 0;
-
-
     #[test]
     fn order_cmp() {
-        let oid = *NORMAL.read();
-        let or1=new(oid, 1, true, 10000, 100);
-        *NORMAL.write() = oid + 1;
-        let oid = *NORMAL.read();
-        let or2=new(oid, 1, true, 11000, 50);
-        *NORMAL.write() = oid + 1;
-        let oid = *NORMAL.read();
-        let or3=new(oid, 1, true, 10000, 30);
-        *NORMAL.write() = oid + 1;
-        let oid = *NORMAL.read();
-        let mut or4=new(oid, 1, false, 12000, 70);
+        init_oid();
+        let or1=new(1, true, 10000, 100);
+        let or2=new(1, true, 11000, 50);
+        let or3=new(1, true, 10000, 30);
+        let mut or4=new(1, false, 12000, 70);
         assert!(or1 != or2);
         assert!(or1 != or3);
         let op1=or1.to_OidPrice();
@@ -168,11 +179,11 @@ mod tests {
         assert!(! or2.is_filled());
         assert!(! or3.is_filled());
         assert!(! or4.is_filled());
-        assert_eq!(or1.oid(), 0);
-        assert_eq!(or2.oid(), 1);
-        assert_eq!(or3.oid(), 2);
-        assert_eq!(or4.oid(), 3);
-        assert_eq!(or1.remain_qty(), 0);
+        assert_eq!(or1.oid(), 1);
+        assert_eq!(or2.oid(), 2);
+        assert_eq!(or3.oid(), 3);
+        assert_eq!(or4.oid(), 4);
+        assert_eq!(or1.remain_qty(), 100);
         assert_eq!(or2.remain_qty(), 50);
         assert_eq!(or3.remain_qty(), 30);
         assert_eq!(or4.remain_qty(), 70);
@@ -180,13 +191,15 @@ mod tests {
         assert_eq!(or4.remain_qty(), 40);
         or4.cancel();
         assert_eq!(or4.remain_qty(), 0);
+        println!("sizeof Order: {}", mem::size_of::<Order>());
     }
 
     #[test]
     fn order_btree() {
-        let or1=new(0, 1, true, 10000, 100);
-        let or2=new(1, 1, true, 11000, 50);
-        let or3=new(2, 1, true, 10000, 30);
+        init_oid();
+        let or1=new(1, true, 10000, 100);
+        let or2=new(1, true, 11000, 50);
+        let or3=new(1, true, 10000, 30);
         let op1 = or1.to_OidPrice();
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         or_maps.insert(or1.to_OidPrice(), Box::new(or1));
@@ -196,13 +209,13 @@ mod tests {
         assert_eq!(or_maps.len(), 3);
         let mut it = or_maps.iter_mut();
         let (_, ord) = it.next().unwrap();
-        assert_eq!(ord.oid(), 1);
+        assert_eq!(ord.oid(), 2);
         assert_eq!(ord.qty(), 50);
         let (_, ord) = it.next().unwrap();
-        assert_eq!(ord.oid(), 0);
+        assert_eq!(ord.oid(), 1);
         assert_eq!(ord.qty(), 100);
         let (_, ord) = it.next().unwrap();
-        assert_eq!(ord.oid(), 2);
+        assert_eq!(ord.oid(), 3);
         assert_eq!(ord.qty(), 30);
         assert!(ord.fill(10, 10000));
         assert_eq!(ord.remain_qty(), 20);
@@ -210,10 +223,10 @@ mod tests {
         assert_ne!(or_maps.remove(&op1), None);
         let mut it = or_maps.iter();
         let (_, ord) = it.next().unwrap();
-        assert_eq!(ord.oid(), 1);
+        assert_eq!(ord.oid(), 2);
         let (_, ord) = it.next().unwrap();
         assert!(! ord.is_filled() );
-        assert_eq!(ord.oid(), 2);
+        assert_eq!(ord.oid(), 3);
         assert_eq!(ord.remain_qty(), 20);
 
         for (_, ord) in or_maps.iter() {
@@ -223,19 +236,18 @@ mod tests {
 
     #[test]
     fn bench_orderbook_insert() {
+        init_oid();
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
-        let mut oid: u64 = 0;
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");
         const N: u32 = 1_000_000;
         for _it in 0 .. N {
-            oid += 1;
             let price = rng.gen::<i32>();
             let mut qty: u32 = rng.gen::<u32>();
             let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
             qty %= 1000;
             qty += 1;
-            let ord = Box::new(new(oid, 1, b_buy, price, qty));
+            let ord = Box::new(new(1, b_buy, price, qty));
             or_maps.insert(ord.to_OidPrice(), ord);
         }
         measure.stop();
