@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+use std::fmt;
+//use std::string::String;
 //use std::sync::Once;
 
 #[derive(Eq, Clone)]
@@ -81,6 +83,24 @@ impl Order {
     pub fn is_filled(&self) -> bool {
         self.filled == self.qty
     }
+    pub fn dir(&self) -> String {
+        if self.buy {
+            "buy".to_string()
+        } else {
+            "sell".to_string()
+        }
+    }
+    pub fn status(&self) -> String {
+        if self.canceled {
+            "canceled".to_string()
+        } else if self.is_filled() {
+            "filled".to_string()
+        } else if self.filled > 0 {
+            "part filled".to_string()
+        } else {
+            "pending".to_string()
+        }
+    }
     pub fn remain_qty(&self) -> u32 {
         if self.canceled || self.id == 0 {
             0
@@ -142,6 +162,13 @@ impl Ord for OidPrice {
 impl PartialOrd for OidPrice {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl fmt::Display for Order {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Oid({}): qty({}) {} @{} filled({}) -- {}", self.id, self.qty,
+                self.dir(), self.price, self.filled, self.status())
     }
 }
 
@@ -262,6 +289,8 @@ mod tests {
         assert_eq!(ord.remain_qty(), 20);
         // follow need derived(Debug) w/ Order
         assert!(or_maps.remove(&op1) != None);
+        // assert_ne/assert_eq need derive(Debug)
+        //assert_ne!(or_maps.remove(&op1), None);
         let mut it = or_maps.iter();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 2);
@@ -271,7 +300,7 @@ mod tests {
         assert_eq!(ord.remain_qty(), 20);
 
         for (_, ord) in or_maps.iter() {
-            println!("{}: qty {} @{}", ord.oid(), ord.qty(), ord.price())
+            println!("{}: {}", ord.oid(), ord)
         }
     }
 
@@ -318,7 +347,7 @@ mod tests {
 
         for (_, oid) in or_maps.iter() {
             let ord = pool.get_order(*oid).unwrap();
-            println!("{}: qty {} @{}", ord.oid(), ord.qty(), ord.price())
+            println!("{}: {}", ord.oid(), ord)
         }
     }
 
