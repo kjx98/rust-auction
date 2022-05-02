@@ -3,6 +3,7 @@ use std::fmt;
 //use std::string::String;
 //use std::sync::Once;
 
+//#[repr(align(16))]
 #[derive(Eq, Clone)]
 pub struct Order {
     id:     u64,
@@ -260,6 +261,7 @@ mod tests {
         or4.cancel();
         assert_eq!(or4.remain_qty(), 0);
         println!("sizeof Order: {}", mem::size_of::<Order>());
+        println!("sizeof OidPrice: {}", mem::size_of::<OidPrice>());
     }
 
     #[test]
