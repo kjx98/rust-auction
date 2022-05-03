@@ -4,7 +4,7 @@ extern crate rand;
 
 use std::collections::BTreeMap;
 use bencher::Bencher;
-use match_base::{Order, OrderPool, OidPrice};
+use match_base::{Order, OrderKey, OrderPool, OidPrice};
 use rand::Rng;
 
 fn or_book(bench: &mut Bencher) {
@@ -38,5 +38,20 @@ fn or_pool_book(bench: &mut Bencher) {
     })
 }
 
-benchmark_group!(benches, or_book, or_pool_book);
+fn or_pool_bookkey(bench: &mut Bencher) {
+    let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
+    let mut pool = OrderPool::new();
+    let mut rng = rand::thread_rng();
+    bench.iter(|| {
+        let price = rng.gen::<i32>();
+        let mut qty: u32 = rng.gen::<u32>();
+        let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
+        qty %= 1000;
+        qty += 1;
+        let ord = pool.new_order(1, b_buy, price, qty).unwrap();
+        or_maps.insert(ord.to_OidPrice(), ord.key());
+    })
+}
+
+benchmark_group!(benches, or_book, or_pool_book, or_pool_bookkey);
 benchmark_main!(benches);
