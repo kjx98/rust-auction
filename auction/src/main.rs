@@ -1,4 +1,6 @@
 use clap::Parser;
+use simple_logger::SimpleLogger;
+use log::{error, info, warn, LevelFilter};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -18,7 +20,11 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    println!("Hello {}!", args.name);
-    println!("Args name({}), count({}), files({:?},{:?})", args.name,
+    SimpleLogger::new().init().unwrap();
+    log::set_max_level(LevelFilter::Info);
+    info!("Hello {}!", args.name);
+    info!("Args name({}), count({}), files({:?},{:?})", args.name,
         args.count, args.file1, args.file2);
+    warn!("ready to exit");
+    error!("no error");
 }

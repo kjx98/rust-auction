@@ -1,6 +1,5 @@
 use std::cmp::Ordering;
 use std::fmt;
-//use std::string::String;
 //use std::sync::Once;
 
 type Oid = u64;
@@ -37,38 +36,10 @@ pub struct OrderPool {
 const MAX_ORDERS: u32 = 60_000_000;
 //static INIT: Once = Once::new();
 
-/*
-// init orders db
-fn init_orders() {
-}
-
-fn new_oid() -> u64 {
-    unsafe {
-        INIT.call_once(|| {
-            init_orders();
-        });
-        if ORDER_NO >= MAX_ORDERS {
-            return 0
-        }
-        ORDER_NO += 1;
-        let oid = ORDER_NO as u64;
-        oid
-    }
-}
-
-pub fn init_oid() {
-    INIT.call_once(|| {
-        init_orders();
-    });
-    unsafe {
-        ORDER_NO = 0
-    }
-}
-*/
-
 
 impl Order {
-    pub const fn new(id: Oid, sym_idx: u32, buy: bool, price: i32, qty: u32) -> Order {
+    pub const fn new(id: Oid, sym_idx: u32, buy: bool, price: i32, qty: u32)
+    -> Order {
         let ret = Order {id, price, sym_idx, qty,
                        filled: 0, buy, canceled: false, price_filled: 0
                     };
@@ -186,7 +157,8 @@ impl OrderKey {
     pub const fn from(id: Oid) -> OrderKey {
         OrderKey(id as u32)
     }
-    pub fn get_mut<'a>(&self, pool: &'a mut OrderPool) -> Option<&'a mut Order> {
+    pub fn get_mut<'a>(&self, pool: &'a mut OrderPool)
+    -> Option<&'a mut Order> {
         if self.0 == 0 || self.0 as usize > pool.v.len() {
             None
         } else {
@@ -212,7 +184,8 @@ impl OrderPool {
         self.v.clear();
         self.len = 0;
     }
-    pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32) -> Option<&Order> {
+    pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32)
+    -> Option<&Order> {
         self.len = self.v.len() as u64;
         if self.len >= MAX_ORDERS as u64 {
             None
@@ -223,6 +196,7 @@ impl OrderPool {
             Some(res)
         }
     }
+    /*
     pub fn get_order_mut(&mut self, oid: Oid) -> Option<&mut Order> {
         if oid == 0 || oid as usize > self.v.len() {
             None
@@ -239,6 +213,7 @@ impl OrderPool {
             Some(&self.v[id as usize])
         }
     }
+    */
 }
 
 #[cfg(test)]
@@ -249,7 +224,6 @@ mod tests {
     use super::Order;
     use super::OrderKey;
     use super::OrderPool;
-    //use super::init_oid;
     use std::collections::BTreeMap;
     use std::cmp::Ordering;
     use std::mem;
@@ -258,7 +232,6 @@ mod tests {
 
     #[test]
     fn order_cmp() {
-        //init_oid();
         let or1=Order::new(1, 1, true, 10000, 100);
         let or2=Order::new(2, 1, true, 11000, 50);
         let or3=Order::new(3, 1, true, 10000, 30);
@@ -300,7 +273,6 @@ mod tests {
 
     #[test]
     fn order_btree() {
-        //init_oid();
         let or1=Order::new(1, 1, true, 10000, 100);
         let or2=Order::new(2, 1, true, 11000, 50);
         let or3=Order::new(3, 1, true, 10000, 30);
@@ -311,6 +283,14 @@ mod tests {
         or_maps.insert(or2.to_OidPrice(), Box::new(or2));
         or_maps.insert(or3.to_OidPrice(), Box::new(or3));
         assert_eq!(or_maps.len(), 3);
+        // first_entry/last_entry is nightly-only API
+        /*
+        if let Some(mut entry) = or_maps.first_entry() {
+            assert!(entry.get().oid() == 2)
+        } else {
+            assert!(false, "first entry MUST exist")
+        }
+        */
         let mut it = or_maps.iter_mut();
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 2);
@@ -342,7 +322,6 @@ mod tests {
 
     #[test]
     fn orderpool_test() {
-        //init_oid();
         let mut pool = OrderPool::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
         assert!(or1.oid() == 1);
@@ -353,7 +332,6 @@ mod tests {
 
     #[test]
     fn orderpool_btree() {
-        //init_oid();
         let mut pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
@@ -400,7 +378,6 @@ mod tests {
 
     #[test]
     fn bench_orderbook_insert() {
-        //init_oid();
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");
@@ -424,7 +401,6 @@ mod tests {
 
     #[test]
     fn bench_orderbook_pool_insert() {
-        //init_oid();
         let mut pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let mut rng = rand::thread_rng();
