@@ -227,7 +227,7 @@ mod tests {
     use std::collections::BTreeMap;
     use std::cmp::Ordering;
     use std::mem;
-    use auction_measure::Measure;
+    use measure::Measure;
     use rand::Rng;
 
     #[test]
@@ -292,6 +292,12 @@ mod tests {
         }
         */
         let mut it = or_maps.iter_mut();
+        /* need impl Ord for Order
+        let it_min = it.min();
+        assert!(it_min != None);
+        let ord = it_min.unwrap();
+        assert_eq!(ord.oid(), 2);
+        */
         let (_, ord) = it.next().unwrap();
         assert_eq!(ord.oid(), 2);
         assert_eq!(ord.qty(), 50);

@@ -10,7 +10,7 @@
 ///
 /// ```
 /// // Measure functions
-/// # use auction_measure::measure;
+/// # use crate::measure::measure;
 /// # fn foo() {}
 /// # fn bar(x: i32) {}
 /// # fn add(x: i32, y: i32) -> i32 {x + y}
@@ -22,7 +22,7 @@
 ///
 /// ```
 /// // Measure methods
-/// # use auction_measure::measure;
+/// # use crate::measure::measure;
 /// # struct Foo {
 /// #     f: i32,
 /// # }
@@ -38,7 +38,7 @@
 ///
 /// ```
 /// // Measure expression blocks
-/// # use auction_measure::measure;
+/// # use crate::measure::measure;
 /// # fn complex_calculation() -> i32 { 42 }
 /// # fn complex_transform(x: i32) -> i32 { x + 3 }
 /// # fn record_result(y: i32) {}
@@ -58,7 +58,7 @@
 ///
 /// ```
 /// // The `name` parameter is optional
-/// # use auction_measure::measure;
+/// # use crate::measure::measure;
 /// # fn meow() {};
 /// let (result, measure) = measure!(meow());
 /// ```

@@ -1,5 +1,5 @@
 [package]
-name = "auction_measure"
+name = "measure"
 description = "time measure, Rebuilt for Scale"
 version = "1.0.0"
 documentation = "https://docs.rs/rust-auction/measure"

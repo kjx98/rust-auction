@@ -1,6 +1,7 @@
 [workspace]
 members = [
 	"auction",
+	"engine",
 	"match-base",
 	"measure"
 ]

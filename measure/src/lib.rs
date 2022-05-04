@@ -2,4 +2,4 @@
 pub mod macros;
 pub mod measure;
 
-pub use measure::Measure;
+pub use crate::measure::Measure;

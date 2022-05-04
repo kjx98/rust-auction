@@ -1,17 +1,8 @@
 [package]
-name = "match-base"
+name = "engine"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-
-[dev-dependencies]
-bencher = "0.1"
-measure = { path = "../measure" }
-rand = "0.4"
-
-[[bench]]
-name = "order"
-harness = false

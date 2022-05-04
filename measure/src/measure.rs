@@ -58,7 +58,7 @@ impl Measure {
     ///
     /// ```
     /// // Call a function with a single argument
-    /// # use auction_measure::measure::Measure;
+    /// # use crate::measure::Measure;
     /// # fn my_function(fizz: i32) -> i32 { fizz }
     /// let (result, measure) = Measure::this(my_function, 42, "my_func");
     /// # assert_eq!(result, 42);
@@ -66,14 +66,14 @@ impl Measure {
     ///
     /// ```
     /// // Call a function with multiple arguments
-    /// # use auction_measure::measure::Measure;
+    /// # use crate::measure::Measure;
     /// let (result, measure) = Measure::this(|(arg1, arg2)| std::cmp::min(arg1, arg2), (42, 123), "minimum");
     /// # assert_eq!(result, 42);
     /// ```
     ///
     /// ```
     /// // Call a method
-    /// # use auction_measure::measure::Measure;
+    /// # use crate::measure::Measure;
     /// # struct Foo { x: i32 }
     /// # impl Foo { fn bar(&self, arg: i32) -> i32 { self.x + arg } }
     /// # let baz = 8;
