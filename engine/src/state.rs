@@ -34,7 +34,7 @@ impl State {
             },
             State::StatePreAuction => {
                 match *self {
-                StateStart | StatePause | StateBreak => true,
+                StateStart | StateBreak => true,
                 _ => false
                 }
             },
@@ -47,7 +47,7 @@ impl State {
             },
             State::StateTrading => {
                 match *self {
-                StateCallAuction | StatePause | StateBreak => true,
+                StateCallAuction | StatePause => true,
                 _ => false
                 }
             },
@@ -72,4 +72,12 @@ impl State {
             },
         }   // end match
     }   // review
+    // state == StateTrading
+    pub fn is_tc(&self) -> bool {
+        *self == StateTrading
+    }
+    // can place order in orderBook
+    pub fn can_book(&self) -> bool {
+        *self == StatePreAuction || *self == StateTrading
+    }
 }

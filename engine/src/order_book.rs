@@ -2,11 +2,13 @@ use std::collections::BTreeMap;
 use std::fmt;
 use match_base::{OidPrice, OrderKey, Order};
 
+type OrderBookMap = BTreeMap<OidPrice, OrderKey>;
+
 pub struct OrderBook {
     sym_idx:    u32,
     sym_name:   String,
-    bids:       BTreeMap<OidPrice, OrderKey>,
-    asks:       BTreeMap<OidPrice, OrderKey>,
+    bids:       OrderBookMap,
+    asks:       OrderBookMap,
 }
 
 impl OrderBook {
@@ -21,6 +23,20 @@ impl OrderBook {
             self.bids.insert(ord.to_OidPrice(), ord.key());
         } else {
             self.asks.insert(ord.to_OidPrice(), ord.key());
+        }
+    }
+    pub fn book(&self, buy: bool) -> &OrderBookMap {
+        if buy {
+            &self.bids
+        } else {
+            &self.asks
+        }
+    }
+    pub fn book_mut(&mut self, buy: bool) -> &mut OrderBookMap {
+        if buy {
+            &mut self.bids
+        } else {
+            &mut self.asks
         }
     }
 }

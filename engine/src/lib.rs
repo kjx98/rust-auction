@@ -1,9 +1,11 @@
 mod state;
 mod engine;
 mod order_book;
+mod deal;
 
 pub use crate::state::State;
 pub use crate::engine::MatchEngine;
+pub use crate::deal::Deal;
 
 #[cfg(test)]
 mod tests {

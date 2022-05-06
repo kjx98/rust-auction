@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::vec::Vec;
 use std::default::Default;
-use match_base::{OrderPool, Symbols};
-use crate::State;
+use match_base::{Order, OrderPool, Symbols};
+use crate::{State, Deal};
 use crate::order_book::OrderBook;
 
 pub struct MatchEngine {
@@ -9,13 +10,14 @@ pub struct MatchEngine {
     symbols: Symbols,
     pool:   OrderPool,
     book:   HashMap<u32, OrderBook>,
+    deals:  Vec<Deal>,
 }
 
 impl MatchEngine {
     pub fn new() -> MatchEngine {
         let pool = OrderPool::new();
         let mut me = MatchEngine { pool, state: Default::default(),
-                    symbols: Symbols::new(),
+                    symbols: Symbols::new(), deals: Vec::<Deal>::new(),
                     book: HashMap::<u32, OrderBook>::new() };
         me.symbols.add_symbol("cu1906");
         me.symbols.add_symbol("cu1908");
@@ -36,18 +38,32 @@ impl MatchEngine {
     }
     pub fn send_order(&mut self, sym: u32, buy: bool, price: i32, qty: u32)
     -> Option<u64> {
-        if let Some(ord) = self.pool.new_order(sym, buy, price, qty) {
-            // try match or insert to orderBook
-            if let Some(or_book) = self.book.get_mut(&sym) {
-                or_book.insert(buy, ord);
-            } else {
-                let mut or_book = OrderBook::new(sym, "symbol");
-                or_book.insert(buy, ord);
-                self.book.insert(sym, or_book);
-            }
-            Some(ord.oid())
-        } else {
-            None
+        if !self.state.can_book() {
+            return None
         }
+        let new_or = self.pool.new_order(sym, buy, price, qty);
+        if new_or == None {
+            return None
+        }
+        let ord = new_or.unwrap();
+        // try match or insert to orderBook
+        if self.state.is_tc() {
+            // try_match
+            if self.try_match(ord) {
+                return Some(ord.oid())
+            }
+        }
+        if let Some(or_book) = self.book.get_mut(&sym) {
+            or_book.insert(buy, ord);
+        } else {
+            let mut or_book = OrderBook::new(sym, "symbol");
+            or_book.insert(buy, ord);
+            self.book.insert(sym, or_book);
+        }
+        Some(ord.oid())
+    }
+    pub fn try_match(&self, ord: &mut Order) -> bool {
+        // filled
+        true
     }
 }

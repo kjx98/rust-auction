@@ -186,13 +186,13 @@ impl OrderPool {
         self.len = 0;
     }
     pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32)
-    -> Option<&Order> {
+    -> Option<&mut Order> {
         self.len = self.v.len() as u64;
         if self.len >= MAX_ORDERS as u64 {
             None
         } else {
             self.v.push(Order::new(self.len+1, sym_idx, buy, price, qty));
-            let res = &self.v[self.len as usize];
+            let res = &mut self.v[self.len as usize];
             self.len += 1;
             Some(res)
         }
