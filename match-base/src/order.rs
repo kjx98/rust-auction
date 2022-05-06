@@ -1,11 +1,12 @@
 use std::cmp::Ordering;
 use std::fmt;
+use std::default::Default;
 //use std::sync::Once;
 
 type Oid = u64;
 
 //#[repr(align(16))]
-#[derive(Eq, Clone)]
+#[derive(Eq, Clone, Default)]
 pub struct Order {
     id:     Oid,
     price:  i32,
@@ -38,11 +39,10 @@ const MAX_ORDERS: u32 = 60_000_000;
 
 
 impl Order {
-    pub const fn new(id: Oid, sym_idx: u32, buy: bool, price: i32, qty: u32)
+    pub fn new(id: Oid, sym_idx: u32, buy: bool, price: i32, qty: u32)
     -> Order {
         let ret = Order {id, price, sym_idx, qty,
-                       filled: 0, buy, canceled: false, price_filled: 0
-                    };
+                       buy, ..Default::default() };
         ret
     }
     #[allow(non_snake_case)]
@@ -182,6 +182,7 @@ impl OrderPool {
     }
     pub fn init(&mut self) {
         self.v.clear();
+        self.v.reserve(2048);
         self.len = 0;
     }
     pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32)
