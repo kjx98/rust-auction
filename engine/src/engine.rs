@@ -65,6 +65,21 @@ impl MatchEngine {
     #[inline]
     pub fn try_match(&mut self, ord: &mut Order) -> bool {
         // filled
+        let or_book = self.book.get_mut(& ord.symbol());
+        if or_book == None {
+            return false
+        }
+        let or_book = or_book.unwrap().book_mut(!ord.is_buy());
+        if or_book.len() == 0 {
+            return false
+        }
         true
+    }
+    #[inline]
+    pub fn set_fill(&mut self, ord: &mut Order, vol: u32, price: i32) {
+        ord.fill(vol, price);
+        let deal_no = self.deals.len() + 1;
+        self.deals.push(Deal::new(deal_no as u64, ord.oid(), price, vol));
+        // should pushDeal to mdCache as well
     }
 }

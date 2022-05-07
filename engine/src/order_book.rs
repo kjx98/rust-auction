@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+//use std::cmp::Ordering;
 use std::fmt;
 use match_base::{OidPrice, OrderKey, Order};
 
@@ -9,6 +10,13 @@ pub struct OrderBook {
     sym_name:   String,
     bids:       OrderBookMap,
     asks:       OrderBookMap,
+}
+
+impl PartialEq for OrderBook {
+    fn eq(&self, other: &Self) -> bool {
+        self.sym_idx == other.sym_idx && self.bids == other.bids &&
+            self.asks == other.asks
+    }
 }
 
 impl OrderBook {

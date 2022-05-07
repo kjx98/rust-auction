@@ -60,7 +60,7 @@ impl State {
             },
             State::StateStop => {
                 match *self {
-                StateIdle | StateTrading | StateBreak | StatePause => true,
+                StateStart | StateTrading | StateBreak | StatePause => true,
                 _ => false
                 }
             },
