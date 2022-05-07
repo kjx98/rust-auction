@@ -26,10 +26,12 @@ fn or_book(bench: &mut Bencher) {
     })
 }
 
+#[allow(dead_code)]
 fn or_pool_book(bench: &mut Bencher) {
     let mut or_maps = BTreeMap::<OidPrice, u64>::new();
-    let mut pool = OrderPool::new();
+    let pool = OrderPool::new();
     let mut rng = rand::thread_rng();
+    OrderPool::reserve(8_000_000);
     bench.iter(|| {
         let price = rng.gen::<i32>();
         let mut qty: u32 = rng.gen::<u32>();
@@ -41,10 +43,12 @@ fn or_pool_book(bench: &mut Bencher) {
     })
 }
 
+#[allow(dead_code)]
 fn or_pool_bookkey(bench: &mut Bencher) {
     let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
-    let mut pool = OrderPool::new();
+    let pool = OrderPool::new();
     let mut rng = rand::thread_rng();
+    OrderPool::reserve(8_000_000);
     bench.iter(|| {
         let price = rng.gen::<i32>();
         let mut qty: u32 = rng.gen::<u32>();
@@ -56,5 +60,6 @@ fn or_pool_bookkey(bench: &mut Bencher) {
     })
 }
 
-benchmark_group!(benches, or_book, or_pool_book, or_pool_bookkey);
+//benchmark_group!(benches, or_book, or_pool_book, or_pool_bookkey);
+benchmark_group!(benches, or_book, or_pool_bookkey);
 benchmark_main!(benches);

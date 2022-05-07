@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 use std::fmt;
 use std::default::Default;
-//use std::sync::Once;
+use std::sync::{Once, atomic};
 
 type Oid = u64;
 
@@ -29,14 +29,42 @@ pub struct OidPrice {
     price:  i32,
 }
 
-pub struct OrderPool {
-    len:    u64,
-    v:      Vec<Order>,
-}
+pub struct OrderPool ();
 
 const MAX_ORDERS: u32 = 60_000_000;
-//static INIT: Once = Once::new();
+static INIT: Once = Once::new();
+static mut ORDER_POOL: Vec<Order> = Vec::new();
+static mut POOL_LOCK: atomic::AtomicBool = atomic::AtomicBool::new(false);
 
+// init orders db
+fn init_orders() {
+    unsafe {
+        ORDER_POOL = Vec::<Order>::with_capacity(2048);
+    }
+}
+
+pub fn clear_orders() {
+    INIT.call_once(|| {
+        init_orders();
+    });
+    unsafe {
+        while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
+            std::thread::yield_now();
+        }
+        ORDER_POOL.clear();
+        POOL_LOCK.store(false, atomic::Ordering::Release);
+    }
+}
+
+fn reserve_orders(siz: usize) {
+    unsafe {
+        while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
+            std::thread::yield_now();
+        }
+        ORDER_POOL.reserve(siz);
+        POOL_LOCK.store(false, atomic::Ordering::Release);
+    }
+}
 
 impl Order {
     pub fn new(id: Oid, sym_idx: u32, buy: bool, price: i32, qty: u32)
@@ -157,43 +185,72 @@ impl OrderKey {
     pub const fn from(id: Oid) -> OrderKey {
         OrderKey(id as u32)
     }
-    pub fn get_mut<'a>(&self, pool: &'a mut OrderPool)
-    -> Option<&'a mut Order> {
-        if self.0 == 0 || self.0 as usize > pool.v.len() {
+    pub fn get_mut(&self) -> Option<&'static mut Order> {
+        let  v_len: usize;
+        unsafe {
+            v_len = ORDER_POOL.len();
+        }
+        if self.0 == 0 || self.0 as usize > v_len {
             None
         } else {
             let id = self.0 - 1;
-            Some(&mut pool.v[id as usize])
+            let ret: &'static mut Order;
+            unsafe {
+                ret = &mut ORDER_POOL[id as usize];
+            }
+            Some(ret)
         }
     }
-    pub fn get<'a>(&self, pool: &'a OrderPool) -> Option<&'a Order> {
-        if self.0 == 0 || self.0 as usize > pool.v.len() {
+    pub fn get(&self) -> Option<&'static Order> {
+        let  v_len: usize;
+        unsafe {
+            v_len = ORDER_POOL.len();
+        }
+        if self.0 == 0 || self.0 as usize > v_len {
             None
         } else {
             let id = self.0 - 1;
-            Some(&pool.v[id as usize])
+            let ret: &'static Order;
+            unsafe {
+                ret = &ORDER_POOL[id as usize];
+            }
+            Some(ret)
         }
     }
 }
 
 impl OrderPool {
     pub fn new() -> OrderPool {
-        OrderPool { len: 0, v: Vec::<Order>::with_capacity(2048) }
+        INIT.call_once(|| {
+            init_orders();
+        });
+        OrderPool()
     }
-    pub fn init(&mut self) {
-        self.v.clear();
-        self.v.reserve(2048);
-        self.len = 0;
+    pub fn init(&self) {
+        clear_orders();
     }
-    pub fn new_order(&mut self, sym_idx: u32, buy: bool, price: i32, qty: u32)
-    -> Option<&mut Order> {
-        self.len = self.v.len() as u64;
-        if self.len >= MAX_ORDERS as u64 {
+    pub fn reserve(siz: usize) {
+        reserve_orders(siz);
+    }
+    pub fn new_order(&self, sym_idx: u32, buy: bool, price: i32, qty: u32)
+    -> Option<&'static mut Order> {
+        let  v_len: usize;
+        unsafe {
+            v_len = ORDER_POOL.len();
+        }
+        if v_len >= MAX_ORDERS as usize {
             None
         } else {
-            self.v.push(Order::new(self.len+1, sym_idx, buy, price, qty));
-            let res = &mut self.v[self.len as usize];
-            self.len += 1;
+            let res: &'static mut Order;
+            unsafe {
+                while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
+                    std::thread::yield_now();
+                }
+                let v_len = ORDER_POOL.len() as u64;
+                ORDER_POOL.push(Order::new(v_len+1, sym_idx, buy, price, qty));
+                POOL_LOCK.store(false, atomic::Ordering::Release);
+                res = &mut ORDER_POOL[v_len as usize];
+            }
             Some(res)
         }
     }
@@ -219,7 +276,6 @@ impl OrderPool {
 
 #[cfg(test)]
 mod tests {
-    //use super::new;
     use super::Oid;
     use super::OidPrice;
     use super::Order;
@@ -333,39 +389,42 @@ mod tests {
 
     #[test]
     fn orderpool_test() {
-        let mut pool = OrderPool::new();
+        let pool = OrderPool::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
-        assert!(or1.oid() == 1);
-        let ret = or1.key().get(&pool);
+        let oid1 = or1.oid();
+        let ret = or1.key().get();
         assert!(ret != None);
-        assert!(ret.unwrap().oid() == 1);
+        assert!(ret.unwrap().oid() == oid1);
     }
 
     #[test]
     fn orderpool_btree() {
-        let mut pool = OrderPool::new();
+        let pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
+        let oid1 = or1.oid();
         or_maps.insert(or1.to_OidPrice(), or1.key());
         assert_eq!(or_maps.len(), 1);
         let ord=pool.new_order(1, true, 11000, 50).unwrap();
+        let oid2 = ord.oid();
         or_maps.insert(ord.to_OidPrice(), ord.key());
         let ord=pool.new_order(1, true, 10000, 30).unwrap();
+        let oid3 = ord.oid();
         or_maps.insert(ord.to_OidPrice(), ord.key());
         assert_eq!(or_maps.len(), 3);
         let mut it = or_maps.iter_mut();
         let (_, oid) = it.next().unwrap();
-        let ord = oid.get(&pool).unwrap();
-        assert_eq!(ord.oid(), 2);
+        let ord = oid.get().unwrap();
+        assert_eq!(ord.oid(), oid2);
         assert_eq!(ord.qty(), 50);
         let (_, oid) = it.next().unwrap();
-        let ord = oid.get(&pool).unwrap();
-        assert_eq!(ord.oid(), 1);
+        let ord = oid.get().unwrap();
+        assert_eq!(ord.oid(), oid1);
         let op1 = ord.to_OidPrice();
         assert_eq!(ord.qty(), 100);
         let (_, oid) = it.next().unwrap();
-        let ord = oid.get_mut(&mut pool).unwrap();
-        assert_eq!(ord.oid(), 3);
+        let ord = oid.get_mut().unwrap();
+        assert_eq!(ord.oid(), oid3);
         assert_eq!(ord.qty(), 30);
         assert!(ord.fill(10, 10000));
         assert_eq!(ord.remain_qty(), 20);
@@ -373,16 +432,16 @@ mod tests {
         assert!(or_maps.remove(&op1) != None);
         let mut it = or_maps.iter();
         let (_, oid) = it.next().unwrap();
-        let ord = oid.get(&pool).unwrap();
-        assert_eq!(ord.oid(), 2);
+        let ord = oid.get().unwrap();
+        assert_eq!(ord.oid(), oid2);
         let (_, oid) = it.next().unwrap();
-        let ord = oid.get(&pool).unwrap();
+        let ord = oid.get().unwrap();
         assert!(! ord.is_filled() );
-        assert_eq!(ord.oid(), 3);
+        assert_eq!(ord.oid(), oid3);
         assert_eq!(ord.remain_qty(), 20);
 
         for (_, oid) in or_maps.iter() {
-            let ord = oid.get(&pool).unwrap();
+            let ord = oid.get().unwrap();
             println!("{}: {}", ord.oid(), ord)
         }
     }
@@ -412,7 +471,7 @@ mod tests {
 
     #[test]
     fn bench_orderbook_pool_insert() {
-        let mut pool = OrderPool::new();
+        let pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");

@@ -62,7 +62,8 @@ impl MatchEngine {
         }
         Some(ord.oid())
     }
-    pub fn try_match(&self, ord: &mut Order) -> bool {
+    #[inline]
+    pub fn try_match(&mut self, ord: &mut Order) -> bool {
         // filled
         true
     }
