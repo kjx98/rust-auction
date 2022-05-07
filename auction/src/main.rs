@@ -1,6 +1,11 @@
 use clap::Parser;
 use simple_logger::SimpleLogger;
 use log::{error, info, warn, LevelFilter};
+use tcmalloc::TCMalloc;
+
+#[global_allocator]
+static GLOBAL: TCMalloc = TCMalloc;
+
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

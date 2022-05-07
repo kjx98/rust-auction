@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "3.1", features = ["derive"] }
 log = "0.4"
+tcmalloc = "0.3"
 
 [dependencies.simple_logger]
 version = "2.1"

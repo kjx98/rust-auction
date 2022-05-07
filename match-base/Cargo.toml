@@ -11,6 +11,7 @@ edition = "2021"
 bencher = "0.1"
 measure = { path = "../measure" }
 rand = "0.4"
+tcmalloc = "0.3"
 
 [[bench]]
 name = "order"

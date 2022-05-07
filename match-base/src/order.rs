@@ -31,7 +31,7 @@ pub struct OidPrice {
 
 pub struct OrderPool {
     len:    u64,
-    v:      std::vec::Vec<Order>,
+    v:      Vec<Order>,
 }
 
 const MAX_ORDERS: u32 = 60_000_000;
@@ -230,6 +230,10 @@ mod tests {
     use std::mem;
     use measure::Measure;
     use rand::Rng;
+    use tcmalloc::TCMalloc;
+
+    #[global_allocator]
+    static GLOBAL: TCMalloc = TCMalloc;
 
     #[test]
     fn order_cmp() {

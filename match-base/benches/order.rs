@@ -6,6 +6,9 @@ use std::collections::BTreeMap;
 use bencher::Bencher;
 use match_base::{Order, OrderKey, OrderPool, OidPrice};
 use rand::Rng;
+use tcmalloc::TCMalloc;
+#[global_allocator]
+static GLOBAL: TCMalloc = TCMalloc;
 
 fn or_book(bench: &mut Bencher) {
     let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
