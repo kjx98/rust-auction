@@ -2,6 +2,8 @@
 prototype of Match Engine in rust-lang
 try BTree for orderbook
 
+The value of free software is to be found in its ability to allow us to actually own and maintain control over our systems.
+
 ## test
 
 [![asciicast](https://asciinema.org/a/491201.svg)](https://asciinema.org/a/491201)

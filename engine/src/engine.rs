@@ -13,6 +13,15 @@ pub struct MatchEngine {
     deals:  Vec<Deal>,
 }
 
+#[inline]
+fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
+    if buy {
+        book_price >= take_price
+    } else {
+        book_price <= take_price
+    }
+}
+
 impl MatchEngine {
     pub fn new() -> MatchEngine {
         let pool = OrderPool::new();

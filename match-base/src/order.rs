@@ -35,6 +35,8 @@ const MAX_ORDERS: u32 = 60_000_000;
 static INIT: Once = Once::new();
 static mut ORDER_POOL: Vec<Order> = Vec::new();
 static mut POOL_LOCK: atomic::AtomicBool = atomic::AtomicBool::new(false);
+//static mut ORDER_POOL: &mut [Order] = &mut [];
+//unsafe { ORDER_POOL = std::slice::from_raw_parts_mut( data: *mut Order, len: usize) }
 
 // init orders db
 fn init_orders() {
