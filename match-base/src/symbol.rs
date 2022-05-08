@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::default::Default;
-//use std::sync::Once;
 
+#[derive(PartialEq)]
 pub struct Symbol {
     name:   String,
     idx:    u32,
@@ -17,15 +17,23 @@ pub struct Symbol {
     _turnover_mul:   u32,
 }
 
-//static INIT: Once = Once::new();
-
 pub struct Symbols {
     id_map: HashMap<u32, Symbol>,
     name_map: HashMap<String, u32>,
     ids:    u32,
 }
 
-//static mut symbols: HashMap<String, Symbol>;
+impl Symbol {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn idx(&self) -> u32 {
+        self.idx
+    }
+    pub fn digits(&self) ->i8 {
+        self.digits
+    }
+}
 
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -69,5 +77,27 @@ impl Symbols {
                     ..Default::default() };
         self.name_map.insert(name.to_string(), self.ids);
         self.id_map.insert(self.ids, sym);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Symbols;
+
+    #[test]
+    fn symbols_test() {
+        let mut syms = Symbols::new();
+        syms.add_symbol("cu1906");
+        syms.add_symbol("cu1909");
+        syms.add_symbol("cu1908");
+        syms.add_symbol("cu1912");
+        let idx = syms.get_idx("cu1906").unwrap();
+        let res = syms.get_symbol(idx);
+        assert!(res != None, "symbol not found");
+        assert_eq!(res.unwrap().name(), "cu1906");
+        let idx = syms.get_idx("cu1908").unwrap();
+        let res = syms.get_symbol(idx);
+        assert!(res != None, "symbol not found");
+        assert_eq!(res.unwrap().name(), "cu1908");
     }
 }

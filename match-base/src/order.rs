@@ -256,24 +256,6 @@ impl OrderPool {
             Some(res)
         }
     }
-    /*
-    pub fn get_order_mut(&mut self, oid: Oid) -> Option<&mut Order> {
-        if oid == 0 || oid as usize > self.v.len() {
-            None
-        } else {
-            let id = oid - 1;
-            Some(&mut self.v[id as usize])
-        }
-    }
-    pub fn get_order(&self, oid: Oid) -> Option<&Order> {
-        if oid == 0 || oid as usize > self.v.len() {
-            None
-        } else {
-            let id = oid - 1;
-            Some(&self.v[id as usize])
-        }
-    }
-    */
 }
 
 #[cfg(test)]
