@@ -90,6 +90,12 @@ impl Order {
     pub fn is_filled(&self) -> bool {
         self.filled == self.qty
     }
+    pub fn is_canceled(&self) -> bool {
+        self.canceled
+    }
+    pub fn is_invalid(&self) -> bool {
+        self.id == 0 || self.filled > self.qty
+    }
     pub fn dir(&self) -> String {
         if self.buy {
             "buy".to_string()
@@ -382,6 +388,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn orderpool_btree() {
         let pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
@@ -431,6 +438,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn bench_orderbook_insert() {
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         let mut rng = rand::thread_rng();
@@ -454,6 +462,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn bench_orderbook_pool_insert() {
         let pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();

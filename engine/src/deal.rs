@@ -1,5 +1,4 @@
 use std::fmt;
-//use std::cmp::Ordering;
 
 #[derive(Eq, Clone, Default)]
 pub struct Deal {

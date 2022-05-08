@@ -7,3 +7,11 @@ edition = "2021"
 
 [dependencies]
 match-base = { path = "../match-base" }
+measure = { path = "../measure" }
+log = "0.4"
+rand = "0.4"
+
+[dependencies.simple_logger]
+version = "2.1"
+default-features = false
+features = ["timestamps", "colors"]

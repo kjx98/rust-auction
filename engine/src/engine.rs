@@ -22,6 +22,15 @@ fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     }
 }
 
+#[inline]
+fn is_price_better(buy: bool, prc1: i32, prc2: i32) -> bool {
+    if buy {
+        prc1 > prc2
+    } else {
+        prc1 < prc2
+    }
+}
+
 impl MatchEngine {
     pub fn new() -> MatchEngine {
         let pool = OrderPool::new();
@@ -90,5 +99,22 @@ impl MatchEngine {
         let deal_no = self.deals.len() + 1;
         self.deals.push(Deal::new(deal_no as u64, ord.oid(), price, vol));
         // should pushDeal to mdCache as well
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{may_match, is_price_better};
+
+    #[test]
+    fn test_inlines() {
+        assert!(may_match(true, 34000,34000));
+        assert!(may_match(true, 34000,33000));
+        assert!(may_match(false, 34000, 34000));
+        assert!(may_match(false, 34000, 34500));
+        assert!(!is_price_better(true, 34000,34000));
+        assert!(is_price_better(true, 34000,33000));
+        assert!(!is_price_better(false, 34000, 34000));
+        assert!(is_price_better(false, 34000, 34500));
     }
 }

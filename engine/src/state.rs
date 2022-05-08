@@ -81,3 +81,14 @@ impl State {
         *self == StatePreAuction || *self == StateTrading
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::State;
+
+    #[test]
+    fn test_state() {
+        let mut state: State = Default::default();
+        assert_eq!(state, State::StateIdle);
+    }
+}
