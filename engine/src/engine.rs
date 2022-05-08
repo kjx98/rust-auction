@@ -13,6 +13,7 @@ pub struct MatchEngine {
     deals:  Vec<Deal>,
 }
 
+#[allow(dead_code)]
 #[inline]
 fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     if buy {
@@ -22,6 +23,7 @@ fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     }
 }
 
+#[allow(dead_code)]
 #[inline]
 fn is_price_better(buy: bool, prc1: i32, prc2: i32) -> bool {
     if buy {

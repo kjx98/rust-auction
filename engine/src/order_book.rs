@@ -33,6 +33,7 @@ impl OrderBook {
             self.asks.insert(ord.to_OidPrice(), ord.key());
         }
     }
+    #[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
         if buy {
             &self.bids
@@ -144,8 +145,37 @@ mod tests {
     use measure::Measure;
 
     #[test]
+    fn test_orderbook() {
+        SimpleLogger::new().init().unwrap();
+        log::set_max_level(LevelFilter::Info);
+        info!("build orderBook");
+        let pool = OrderPool::new();
+        let mut orb = OrderBook::new(1, "cu1906");
+        let mut rng = rand::thread_rng();
+        let mut measure = Measure::start("orderbook bench");
+        const N: u32 = 2_000;
+        for _it in 0 .. N {
+            let price = rng.gen::<i32>();
+            let mut qty: u32 = rng.gen::<u32>();
+            let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
+            qty %= 1000;
+            qty += 1;
+            let ord = pool.new_order(1, b_buy, price, qty).unwrap();
+            orb.insert(b_buy, ord);
+        }
+        measure.stop();
+        let ns_ops = measure.as_ns() / (N as u64);
+        assert!(ns_ops < 10_000);
+        println!("build orderBook cost {} us, bids: {}, asks: {}",
+                 measure.as_us(), orb.bids.len(), orb.asks.len());
+        println!("orderBook insert cost {} ns per Op", ns_ops);
+        assert!(orb.validate(), "orderBook disorder");
+        warn!("no warn");
+    }
+
+    #[test]
     #[ignore]
-    fn orderbook_test() {
+    fn bench_orderbook() {
         SimpleLogger::new().init().unwrap();
         log::set_max_level(LevelFilter::Info);
         info!("build orderBook");
@@ -169,7 +199,13 @@ mod tests {
         println!("build orderBook cost {} ms, bids: {}, asks: {}",
                  measure.as_ms(), orb.bids.len(), orb.asks.len());
         println!("orderBook insert cost {} ns per Op", ns_ops);
-        assert!(orb.validate(), "orderBook disorder");
-        warn!("no warn");
+        let mut measure = Measure::start("orderbook bench");
+        let valid = orb.validate();
+        measure.stop();
+        let ns_ops = measure.as_ns() / (N as u64);
+        assert!(ns_ops < 10_000);
+        println!("validate orderBook cost {} ms, bids: {}, asks: {}",
+                 measure.as_ms(), orb.bids.len(), orb.asks.len());
+        assert!(valid, "orderBook disorder");
     }
 }

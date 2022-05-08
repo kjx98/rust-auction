@@ -282,7 +282,7 @@ mod tests {
     static GLOBAL: TCMalloc = TCMalloc;
 
     #[test]
-    fn order_cmp() {
+    fn test_cmp() {
         let or1=Order::new(1, 1, true, 10000, 100);
         let or2=Order::new(2, 1, true, 11000, 50);
         let or3=Order::new(3, 1, true, 10000, 30);
@@ -323,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn order_btree() {
+    fn test_btree() {
         let or1=Order::new(1, 1, true, 10000, 100);
         let or2=Order::new(2, 1, true, 11000, 50);
         let or3=Order::new(3, 1, true, 10000, 30);
@@ -378,26 +378,34 @@ mod tests {
     }
 
     #[test]
-    fn orderpool_test() {
+    fn test_orderpool() {
         let pool = OrderPool::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
         let oid1 = or1.oid();
         let ret = or1.key().get();
         assert!(ret != None);
         assert!(ret.unwrap().oid() == oid1);
+        println!("oid: {}", oid1);
+        let or1=pool.new_order(1, true, 10000, 100).unwrap();
+        let oid2 = or1.oid();
+        let ret = or1.key().get();
+        assert!(ret != None);
+        assert!(ret.unwrap().oid() == oid2);
+        println!("oid: {}", oid2);
     }
 
     #[test]
-    #[ignore]
-    fn orderpool_btree() {
+    fn test_orderpool_btree() {
         let pool = OrderPool::new();
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let or1=pool.new_order(1, true, 10000, 100).unwrap();
         let oid1 = or1.oid();
+        println!("orderpool_btree oid1: {}", oid1);
         or_maps.insert(or1.to_OidPrice(), or1.key());
         assert_eq!(or_maps.len(), 1);
         let ord=pool.new_order(1, true, 11000, 50).unwrap();
         let oid2 = ord.oid();
+        println!("orderpool_btree oid2: {}", oid2);
         or_maps.insert(ord.to_OidPrice(), ord.key());
         let ord=pool.new_order(1, true, 10000, 30).unwrap();
         let oid3 = ord.oid();
@@ -439,7 +447,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn bench_orderbook_insert() {
+    fn bench_order_insert() {
         let mut or_maps = BTreeMap::<OidPrice, Box<Order>>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");
@@ -463,8 +471,9 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn bench_orderbook_pool_insert() {
+    fn bench_orderpool_insert() {
         let pool = OrderPool::new();
+        OrderPool::reserve(2_000_000);
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");

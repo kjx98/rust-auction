@@ -90,5 +90,29 @@ mod tests {
     fn test_state() {
         let mut state: State = Default::default();
         assert_eq!(state, State::StateIdle);
+        assert!(state.review(&State::StateStart));
+        state = State::StateStart;
+        assert!(!state.is_tc());
+        assert!(!state.can_book());
+        assert!(state.review(&State::StatePreAuction));
+        assert!(!state.review(&State::StateCallAuction));
+        assert!(!state.review(&State::StateTrading));
+        state = State::StatePreAuction;
+        assert!(!state.is_tc());
+        assert!(state.can_book());
+        assert!(state.review(&State::StateCallAuction));
+        assert!(!state.review(&State::StateTrading));
+        state = State::StateCallAuction;
+        assert!(!state.is_tc());
+        assert!(!state.can_book());
+        assert!(state.review(&State::StateTrading));
+        state = State::StateTrading;
+        assert!(state.review(&State::StatePause));
+        assert!(state.review(&State::StateBreak));
+        assert!(state.review(&State::StateStop));
+        assert!(!state.review(&State::StateEnd));
+        assert!(!state.review(&State::StatePreAuction));
+        assert!(state.is_tc());
+        assert!(state.can_book());
     }
 }
