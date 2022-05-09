@@ -146,7 +146,9 @@ mod tests {
 
     #[test]
     fn test_orderbook() {
-        SimpleLogger::new().init().unwrap();
+        if let Err(s) = SimpleLogger::new().init() {
+            warn!("SimpleLogger init: {}", s);
+        }
         log::set_max_level(LevelFilter::Info);
         info!("build orderBook");
         let pool = OrderPool::new();
@@ -170,13 +172,14 @@ mod tests {
                  measure.as_us(), orb.bids.len(), orb.asks.len());
         println!("orderBook insert cost {} ns per Op", ns_ops);
         assert!(orb.validate(), "orderBook disorder");
-        warn!("no warn");
     }
 
     #[test]
     #[ignore]
     fn bench_orderbook() {
-        SimpleLogger::new().init().unwrap();
+        if let Err(s) = SimpleLogger::new().init() {
+            warn!("SimpleLogger init: {}", s);
+        }
         log::set_max_level(LevelFilter::Info);
         info!("build orderBook");
         let pool = OrderPool::new();

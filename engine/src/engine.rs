@@ -4,6 +4,7 @@ use std::default::Default;
 use match_base::{Order, OrderPool, Symbols};
 use crate::{State, Deal};
 use crate::order_book::OrderBook;
+use log::{error, info, warn};
 
 pub struct MatchEngine {
     state:  State,
@@ -31,6 +32,42 @@ fn is_price_better(buy: bool, prc1: i32, prc2: i32) -> bool {
     } else {
         prc1 < prc2
     }
+}
+
+#[allow(dead_code)]
+#[inline]
+fn get_mid_price(hi: i32, lo: i32, clast: i32) -> i32 {
+    if hi == lo || clast > hi {
+        hi
+    } else if clast < lo {
+        lo
+    } else {
+        clast
+    }
+}
+
+
+#[allow(dead_code)]
+#[inline]
+fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
+    let ob = orb.book(buy);
+    if ob.len() == 0 {
+        return 0
+    }
+    let mut it = ob.iter();
+    let mut fill_qty = 0;
+    while let Some((_, okey)) = it.next() {
+        if let Some(ord) = okey.get() {
+            if !may_match(buy, ord.price(), prc) {
+                return fill_qty
+            }
+            fill_qty += ord.remain_qty();
+            if qty != 0 && fill_qty >= qty {
+                break
+            }
+        }
+    }
+    fill_qty
 }
 
 impl MatchEngine {
@@ -106,17 +143,30 @@ impl MatchEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::{may_match, is_price_better};
+    use super::{may_match, is_price_better, get_mid_price};
+    use simple_logger::SimpleLogger;
+    use log::{info, warn, LevelFilter};
 
     #[test]
     fn test_inlines() {
+        if let Err(s) = SimpleLogger::new().init() {
+            warn!("SimpleLogger init: {}", s);
+        }
+        log::set_max_level(LevelFilter::Info);
+        info!("test may_match");
         assert!(may_match(true, 34000,34000));
         assert!(may_match(true, 34000,33000));
         assert!(may_match(false, 34000, 34000));
         assert!(may_match(false, 34000, 34500));
+        info!("test is_price_better");
         assert!(!is_price_better(true, 34000,34000));
         assert!(is_price_better(true, 34000,33000));
         assert!(!is_price_better(false, 34000, 34000));
         assert!(is_price_better(false, 34000, 34500));
+        info!("test get_mid_price");
+        assert_eq!(get_mid_price(32000, 30000, 31000), 31000);
+        assert_eq!(get_mid_price(32000, 30000, 29000), 30000);
+        assert_eq!(get_mid_price(32000, 30000, 33000), 32000);
+        assert_eq!(get_mid_price(32000, 30000, 32000), 32000);
     }
 }
