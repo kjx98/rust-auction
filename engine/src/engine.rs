@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::vec::Vec;
 use std::default::Default;
 use match_base::{Order, OrderPool, Symbols};
-use crate::{State, Deal};
+use crate::{State, Deals};
 use crate::order_book::OrderBook;
 use log::{error, info, warn};
 
@@ -11,7 +11,7 @@ pub struct MatchEngine {
     symbols: Symbols,
     pool:   OrderPool,
     book:   HashMap<u32, OrderBook>,
-    deals:  Vec<Deal>,
+    deals:  Deals,
 }
 
 #[allow(dead_code)]
@@ -74,7 +74,7 @@ impl MatchEngine {
     pub fn new() -> MatchEngine {
         let pool = OrderPool::new();
         let mut me = MatchEngine { pool, state: Default::default(),
-                    symbols: Symbols::new(), deals: Vec::<Deal>::new(),
+                    symbols: Symbols::new(), deals: Deals::new(),
                     book: HashMap::<u32, OrderBook>::new() };
         me.symbols.add_symbol("cu1906");
         me.symbols.add_symbol("cu1908");
@@ -86,9 +86,49 @@ impl MatchEngine {
         let rev = self.state.review(&new_state);
         if rev {
             // do somethine
+            match new_state {
+                State::StateIdle => {
+                    let pool = OrderPool::new();
+                    pool.init();        // clear orders
+                    self.deals.clear();
+                },
+                State::StateCallAuction => {
+                    // do call auction
+                    // uncross
+                },
+                _ => { },
+            }
             self.state = new_state;
         }
         rev
+    }
+    // init symbols/orders/deals
+    pub fn init_market(&mut self) -> bool {
+        self.change_state(State::StateIdle)
+    }
+    // goto preAuction
+    pub fn start_market(&mut self) -> bool {
+        self.change_state(State::StatePreAuction)
+    }
+    // uncross
+    pub fn call_auction(&mut self) -> bool {
+        self.change_state(State::StateCallAuction)
+    }
+    // start trading
+    pub fn start_trading(&mut self) -> bool {
+        self.change_state(State::StateTrading)
+    }
+    // pause trading
+    pub fn pause_trading(&mut self) -> bool {
+        self.change_state(State::StatePause)
+    }
+    // stop trading
+    pub fn stop_trading(&mut self) -> bool {
+        self.change_state(State::StateStop)
+    }
+    // end market
+    pub fn end_market(&mut self) -> bool {
+        self.change_state(State::StateEnd)
     }
     pub fn symbol_idx(&self, name: &str) -> Option<u32> {
         self.symbols.get_idx(name)
@@ -135,8 +175,7 @@ impl MatchEngine {
     #[inline]
     pub fn set_fill(&mut self, ord: &mut Order, vol: u32, price: i32) {
         ord.fill(vol, price);
-        let deal_no = self.deals.len() + 1;
-        self.deals.push(Deal::new(deal_no as u64, ord.oid(), price, vol));
+        self.deals.push_deal(ord.oid(), price, vol);
         // should pushDeal to mdCache as well
     }
 }

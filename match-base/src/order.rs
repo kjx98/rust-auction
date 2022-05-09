@@ -316,6 +316,7 @@ mod tests {
         assert!(or4.fill(30, 12500));
         assert_eq!(or4.remain_qty(), 40);
         or4.cancel();
+        assert!(or4.is_canceled());
         assert_eq!(or4.remain_qty(), 0);
         println!("sizeof Order: {}", mem::size_of::<Order>());
         println!("sizeof OidPrice: {}", mem::size_of::<OidPrice>());

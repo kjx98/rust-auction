@@ -54,6 +54,8 @@ impl Default for Symbol {
     }
 }
 
+const MAX_SYMBOLS: u32 = 1_000_000;
+
 impl Symbols {
     pub fn new() -> Symbols {
         Symbols { ids: 0, id_map: HashMap::<u32, Symbol>::new(),
@@ -66,11 +68,15 @@ impl Symbols {
             None
         }
     }
+    pub fn end_idx(&self) -> u32 {
+        self.ids + 1
+    }
     pub fn get_symbol(&self, idx: u32) -> Option<&Symbol> {
         self.id_map.get(&idx)
     }
     pub fn add_symbol(&mut self, name: &str) {
         if self.name_map.get(name) != None { return }
+        if self.ids >= MAX_SYMBOLS { return }
         self.ids += 1;
         let sym = Symbol { idx: self.ids,
                     name: name.to_string(),
@@ -99,5 +105,6 @@ mod tests {
         let res = syms.get_symbol(idx);
         assert!(res != None, "symbol not found");
         assert_eq!(res.unwrap().name(), "cu1908");
+        assert!(syms.get_symbol(syms.end_idx()) == None);
     }
 }

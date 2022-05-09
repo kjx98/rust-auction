@@ -5,7 +5,7 @@ mod deal;
 
 pub use crate::state::State;
 pub use crate::engine::MatchEngine;
-pub use crate::deal::Deal;
+pub use crate::deal::{Deal, Deals};
 
 #[cfg(test)]
 mod tests {
