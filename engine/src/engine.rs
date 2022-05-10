@@ -121,6 +121,10 @@ impl MatchEngine {
     pub fn init_market(&mut self) -> bool {
         self.change_state(State::StateIdle)
     }
+    // open market
+    pub fn begin_market(&mut self) -> bool {
+        self.change_state(State::StateStart)
+    }
     // goto preAuction
     pub fn start_market(&mut self) -> bool {
         self.change_state(State::StatePreAuction)
@@ -186,6 +190,9 @@ impl MatchEngine {
             return false
         }
         true
+    }
+    pub fn book(&self, sym: u32) -> Option<&OrderBook> {
+        self.book.get(&sym)
     }
     #[inline]
     pub fn set_fill(&mut self, ord: &mut Order, vol: u32, price: i32) {
@@ -286,29 +293,35 @@ impl MatchEngine {
     #[cfg(test)]
     pub fn build_orders(&mut self, sym: u32, orders: &str) -> bool {
         let mut it = orders.lines();
+        let mut order_cnt = 0;
         while let Some(aline) = it.next() {
+            info!("send order: {}", aline);
             let v: Vec<&str> = aline.split(',').collect();
             if v.len() < 4 { continue }
-            if let Ok(prc) = v[1].parse::<i32>() {
-                if let Ok(qty) = v[2].parse::<u32>() {
-                    let buy: bool = if let Ok(bb) = v[3].parse::<u8>() {
+            if let Ok(prc) = v[1].trim().parse::<i32>() {
+                if let Ok(qty) = v[2].trim().parse::<u32>() {
+                    let buy: bool = if let Ok(bb) = v[3].trim().parse::<u8>() {
                                         bb != 0
                                     } else { false };
                     if self.send_order(sym, buy, prc, qty) == None {
                         warn!("send_order failed");
                         return false
                     }
+                    order_cnt += 1;
                 } else { continue }
             } else { continue }
         }
+        info!("build {} orders for symbol({})", order_cnt, sym);
         true
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{may_match, is_price_better, get_mid_price};
+    use super::{may_match, is_price_better, get_mid_price, MatchEngine};
     use simple_logger::SimpleLogger;
+    use crate::state::State;
+    use match_base::Deal;
     use log::{info, warn, LevelFilter};
 
     #[test]
@@ -332,5 +345,51 @@ mod tests {
         assert_eq!(get_mid_price(32000, 30000, 29000), 30000);
         assert_eq!(get_mid_price(32000, 30000, 33000), 32000);
         assert_eq!(get_mid_price(32000, 30000, 32000), 32000);
+    }
+
+    #[test]
+    fn test_cross() {
+        if let Err(s) = SimpleLogger::new().init() {
+            warn!("SimpleLogger init: {}", s);
+        }
+        log::set_max_level(LevelFilter::Info);
+        let deals1 = vec![Deal::new(1, 4, 43500, 45),
+                        Deal::new(2, 8, 43500, 45),
+                        Deal::new(3, 4, 43200, 5),
+                        Deal::new(4, 10, 43200, 5),
+                        Deal::new(5, 9, 43200, 5),
+                        Deal::new(6, 10, 43200, 5),
+                        Deal::new(7, 9, 43200, 20),
+                        Deal::new(8, 12, 43200, 20)];
+        let orders1 = "1, 42000, 10, 1\n\
+2,43000,20,1\n\
+3,41000,30,1\n\
+4,44000,50,1\n\
+5,45000,10,0\n\
+6,48000,20,0\n\
+7,46000,30,0\n\
+8,43500,45,0\n\
+9,43900,25,1\n\
+10,43200,10,0\n\
+11,43800,15,1\n\
+12,43200,20,0\n";
+        let orders2 = "1, 43000, 20, 1\n\
+2, 44000, 50, 1\n\
+3, 45000, 10, 0\n\
+4, 43500, 45, 0\n\
+5, 43200, 10, 0\n\
+6, 43900, 25, 1\n\
+7, 43200, 20, 0\n";
+        let mut me = MatchEngine::new();
+        assert!(me.state.eq(&State::StateIdle));
+        assert!(me.begin_market());
+        assert!(me.start_market());
+        assert!(me.build_orders(1, orders1));
+        let orb = me.book(1);
+        assert!(orb != None);
+        let mc_ret = me.match_cross(1, 40000);
+        assert!(mc_ret != None);
+        let (last, maxvol, remvol) = mc_ret.unwrap();
+        assert_eq!(mc_ret.unwrap(), (43900, 75, 0));
     }
 }
