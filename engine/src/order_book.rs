@@ -26,12 +26,20 @@ impl OrderBook {
             asks: BTreeMap::<OidPrice, OrderKey>::new(),
         }
     }
+    pub fn clear(&mut self) {
+        info!("clear symbol({}) orderBook", self.sym_name);
+        self.bids.clear();
+        self.asks.clear();
+    }
     pub fn insert(&mut self, buy: bool, ord: &Order) {
         if buy {
             self.bids.insert(ord.to_OidPrice(), ord.key());
         } else {
             self.asks.insert(ord.to_OidPrice(), ord.key());
         }
+    }
+    pub fn symbol(&self) -> &str {
+        &self.sym_name
     }
     #[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
@@ -58,42 +66,45 @@ impl OrderBook {
             let mut last = ord.price();
             let mut oid = ord.oid();
             while let Some((_, orkey)) = it.next() {
-                let ord = orkey.get().unwrap();
-                if ord.is_canceled() {
-                    continue
-                }
-                if ord.is_filled() {
-                    error!("order oid({}) is filled, MUST removed", ord.oid());
-                    return false
-                }
-                if last < ord.price() {
-                    error!("Bid order book price disorder for oid({})",
-                            ord.oid());
-                    return false
-                }
-                if last == ord.price() {
-                    if oid >= ord.oid() {
-                        error!("Bid order book oid disorder for oid({})",
+                if let Some(ord) = orkey.get() {
+                    if ord.is_canceled() { continue }
+                    if ord.is_filled() {
+                        error!("{} order oid({}) is filled, MUST removed",
+                                self.sym_name, ord.oid());
+                        return false
+                    }
+                    if last < ord.price() {
+                        error!("Bid order book price disorder for oid({})",
                                 ord.oid());
                         return false
                     }
+                    if last == ord.price() {
+                        if oid >= ord.oid() {
+                            error!("Bid order book oid disorder for oid({})",
+                                    ord.oid());
+                            return false
+                        }
+                        oid = ord.oid();
+                        continue
+                    }
+                    last = ord.price();
                     oid = ord.oid();
-                    continue
+                } else {
+                    error!("bids orkey {} not found", orkey.key());
+                    return false
                 }
-                last = ord.price();
-                oid = ord.oid();
             }
         }
         // validate asks
         info!("validate ask orderBook for {}", self.sym_name);
-        if self.asks.len() > 1 {
-            let mut it = self.asks.iter();
-            let (_, orkey) = it.next().unwrap();
-            let ord = orkey.get().unwrap();
-            let mut last = ord.price();
-            let mut oid = ord.oid();
-            while let Some((_, orkey)) = it.next() {
-                let ord = orkey.get().unwrap();
+        if self.asks.len() < 2 { return true }
+        let mut it = self.asks.iter();
+        let (_, orkey) = it.next().unwrap();
+        let ord = orkey.get().unwrap();
+        let mut last = ord.price();
+        let mut oid = ord.oid();
+        while let Some((_, orkey)) = it.next() {
+            if let Some(ord) = orkey.get() {
                 if ord.is_canceled() {
                     continue
                 }
@@ -121,6 +132,9 @@ impl OrderBook {
                 }
                 last = ord.price();
                 oid = ord.oid();
+            } else {
+                error!("asks orkey {} not found", orkey.key());
+                return false
             }
         }
         true

@@ -193,6 +193,9 @@ impl OrderKey {
     pub const fn from(id: Oid) -> OrderKey {
         OrderKey(id as u32)
     }
+    pub fn key(&self) -> u32 {
+        self.0
+    }
     pub fn get_mut(&self) -> Option<&'static mut Order> {
         let  v_len: usize;
         unsafe {
@@ -472,7 +475,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn bench_orderpool_insert() {
+    fn bench_orderpool() {
         let pool = OrderPool::new();
         OrderPool::reserve(2_000_000);
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
@@ -491,6 +494,20 @@ mod tests {
         measure.stop();
         let ns_ops = measure.as_ns() / (N as u64);
         assert!(ns_ops < 10_000);
-        println!("orderPool orderBook insert cost {} ns per Op", ns_ops);
+        println!("orderPool orderBook insert {} orders cost {} ns per Op",
+                 or_maps.len(), ns_ops);
+        /*
+         // can't borrow mut twice, iter/remove
+        let cnt = or_maps.len();
+        let mut measure = Measure::start("orderbook remove bench");
+        let mut it = or_maps.iter();
+        while let Some((key, orkey)) = it.next() {
+            or_maps.remove(key);
+        }
+        measure.stop();
+        let ns_ops = measure.as_ns() / (cnt as u64);
+        assert!(ns_ops < 10_000);
+        println!("orderPool orderBook remove cost {} ns per Op", ns_ops);
+        */
     }
 }

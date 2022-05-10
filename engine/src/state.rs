@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq)]
 pub enum State {
     StateIdle,
@@ -15,6 +17,22 @@ use State::*;
 
 impl Default for State {
     fn default() -> Self { State::StateIdle }
+}
+
+impl fmt::Display for State {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            StateIdle => write!(f, "State Idle"),
+            StateStart => write!(f, "State Start"),
+            StatePreAuction => write!(f, "State PreAuction"),
+            StateCallAuction => write!(f, "State CallAuction"),
+            StateTrading => write!(f, "State Trading"),
+            StatePause => write!(f, "State Pause"),
+            StateBreak => write!(f, "State Break"),
+            StateStop => write!(f, "State Stop"),
+            StateEnd => write!(f, "State End"),
+        }
+    }
 }
 
 impl State {

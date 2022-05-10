@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::vec::Vec;
-use std::default::Default;
-use match_base::{Order, OrderPool, Symbols};
-use crate::{State, Deals};
+//use std::default::Default;
+use match_base::{Order, OrderPool, DealPool, Symbols};
+use crate::{State};
 use crate::order_book::OrderBook;
 use log::{error, info, warn};
 
@@ -11,7 +10,7 @@ pub struct MatchEngine {
     symbols: Symbols,
     pool:   OrderPool,
     book:   HashMap<u32, OrderBook>,
-    deals:  Deals,
+    deals:  DealPool,
 }
 
 #[allow(dead_code)]
@@ -58,6 +57,11 @@ fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
     let mut fill_qty = 0;
     while let Some((_, okey)) = it.next() {
         if let Some(ord) = okey.get() {
+            if ord.is_canceled() { continue }
+            if ord.is_invalid() {
+                error!("order({}) is invalid", ord.oid());
+                continue
+            }
             if !may_match(buy, ord.price(), prc) {
                 return fill_qty
             }
@@ -74,7 +78,7 @@ impl MatchEngine {
     pub fn new() -> MatchEngine {
         let pool = OrderPool::new();
         let mut me = MatchEngine { pool, state: Default::default(),
-                    symbols: Symbols::new(), deals: Deals::new(),
+                    symbols: Symbols::new(), deals: DealPool::new(),
                     book: HashMap::<u32, OrderBook>::new() };
         me.symbols.add_symbol("cu1906");
         me.symbols.add_symbol("cu1908");
@@ -86,11 +90,20 @@ impl MatchEngine {
         let rev = self.state.review(&new_state);
         if rev {
             // do somethine
+            info!("do change state {}", new_state);
             match new_state {
                 State::StateIdle => {
                     let pool = OrderPool::new();
                     pool.init();        // clear orders
                     self.deals.clear();
+                    // clear orderBooks
+                    let mut it = self.book.iter_mut();
+                    while let Some((_, ob)) = it.next() {
+                        if !ob.validate() {
+                            warn!("{} orderBook validate failed", ob.symbol());
+                        }
+                        ob.clear();
+                    }
                 },
                 State::StateCallAuction => {
                     // do call auction
@@ -99,6 +112,8 @@ impl MatchEngine {
                 _ => { },
             }
             self.state = new_state;
+        } else {
+            warn!("can't change to: {}", new_state);
         }
         rev
     }
