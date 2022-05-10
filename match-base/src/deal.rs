@@ -14,6 +14,7 @@ pub struct DealPool ();
 const MAX_DEALS: u32 = 30_000_000;
 static INIT: Once = Once::new();
 static mut DEAL_POOL: Vec<Deal> = Vec::new();
+static mut DEAL_NO: u64 = 0;
 static mut POOL_LOCK: atomic::AtomicBool = atomic::AtomicBool::new(false);
 //static mut DEAL_POOL: &mut [Deal] = &mut [];
 //unsafe { DEAL_POOL = std::slice::from_raw_parts_mut( data: *mut Order, len: usize) }
@@ -33,6 +34,7 @@ pub fn clear_deals() {
         while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
             std::thread::yield_now();
         }
+        DEAL_NO = 0;
         DEAL_POOL.clear();
         POOL_LOCK.store(false, atomic::Ordering::Release);
     }
@@ -87,17 +89,18 @@ impl DealPool {
                 }
                 let v_len = DEAL_POOL.len() as u64;
                 DEAL_POOL.push(Deal::new(v_len+1, oid, price, qty));
+                DEAL_NO = DEAL_POOL.len() as u64;
                 POOL_LOCK.store(false, atomic::Ordering::Release);
             }
             true
         }
     }
     pub fn get(&self, idx: u64) -> Option<&'static Deal> {
-        let  v_len: usize;
+        let  v_len: u64;
         unsafe {
-            v_len = DEAL_POOL.len();
+            v_len = DEAL_NO;
         }
-        if idx == 0 || idx > v_len as u64 { return None }
+        if idx == 0 || idx > v_len { return None }
         let ret: &'static Deal;
         unsafe {
             ret = &DEAL_POOL[idx as usize - 1];

@@ -34,6 +34,7 @@ pub struct OrderPool ();
 const MAX_ORDERS: u32 = 60_000_000;
 static INIT: Once = Once::new();
 static mut ORDER_POOL: Vec<Order> = Vec::new();
+static mut ORDER_NO: u64 = 0;
 static mut POOL_LOCK: atomic::AtomicBool = atomic::AtomicBool::new(false);
 //static mut ORDER_POOL: &mut [Order] = &mut [];
 //unsafe { ORDER_POOL = std::slice::from_raw_parts_mut( data: *mut Order, len: usize) }
@@ -53,6 +54,7 @@ pub fn clear_orders() {
         while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
             std::thread::yield_now();
         }
+        ORDER_NO = 0;
         ORDER_POOL.clear();
         POOL_LOCK.store(false, atomic::Ordering::Release);
     }
@@ -199,7 +201,7 @@ impl OrderKey {
     pub fn get_mut(&self) -> Option<&'static mut Order> {
         let  v_len: usize;
         unsafe {
-            v_len = ORDER_POOL.len();
+            v_len = ORDER_NO as usize;
         }
         if self.0 == 0 || self.0 as usize > v_len {
             None
@@ -215,7 +217,7 @@ impl OrderKey {
     pub fn get(&self) -> Option<&'static Order> {
         let  v_len: usize;
         unsafe {
-            v_len = ORDER_POOL.len();
+            v_len = ORDER_NO as usize;
         }
         if self.0 == 0 || self.0 as usize > v_len {
             None
@@ -247,7 +249,7 @@ impl OrderPool {
     -> Option<&'static mut Order> {
         let  v_len: usize;
         unsafe {
-            v_len = ORDER_POOL.len();
+            v_len = ORDER_NO as usize;
         }
         if v_len >= MAX_ORDERS as usize {
             None
@@ -259,6 +261,7 @@ impl OrderPool {
                 }
                 let v_len = ORDER_POOL.len() as u64;
                 ORDER_POOL.push(Order::new(v_len+1, sym_idx, buy, price, qty));
+                ORDER_NO = ORDER_POOL.len() as u64;
                 POOL_LOCK.store(false, atomic::Ordering::Release);
                 res = &mut ORDER_POOL[v_len as usize];
             }
