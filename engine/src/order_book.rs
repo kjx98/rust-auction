@@ -1,9 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{btree_map, BTreeMap};
 use std::fmt;
 use match_base::{OidPrice, OrderKey, Order};
 use log::{error, info, warn};
 
 type OrderBookMap = BTreeMap<OidPrice, OrderKey>;
+type OrderBookIter<'a> = btree_map::Iter<'a, OidPrice, OrderKey>;
 
 pub struct OrderBook {
     sym_idx:    u32,
@@ -11,6 +12,12 @@ pub struct OrderBook {
     bids:       OrderBookMap,
     asks:       OrderBookMap,
 }
+
+pub struct OrderPriceQty<'a> {
+    it:     OrderBookIter<'a>,
+    last_oid:   u64,
+}
+
 
 impl PartialEq for OrderBook {
     fn eq(&self, other: &Self) -> bool {
@@ -40,6 +47,13 @@ impl OrderBook {
     }
     pub fn symbol(&self) -> &str {
         &self.sym_name
+    }
+    pub fn pv_iter(&self, buy: bool) -> OrderPriceQty {
+        if buy {
+            OrderPriceQty { it: self.bids.iter(), last_oid: 0}
+        } else {
+            OrderPriceQty { it: self.asks.iter(), last_oid: 0}
+        }
     }
     #[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
@@ -149,10 +163,42 @@ impl fmt::Display for OrderBook {
     }
 }
 
+impl OrderPriceQty<'_> {
+    pub fn next(&mut self) -> Option<(i32, u32)> {
+        let prc: i32;
+        let mut qty: u32;
+        if self.last_oid == 0 {
+            if let Some((_, orkey)) = self.it.next() {
+                let ord = orkey.get().unwrap();
+                prc = ord.price();
+                qty = ord.remain_qty();
+            } else {
+                return None
+            }
+        } else {
+            let orkey = OrderKey::from(self.last_oid);
+            let ord = orkey.get().unwrap();
+            prc = ord.price();
+            qty = ord.remain_qty();
+        }
+        while let Some((_, orkey)) = self.it.next() {
+            let ord = orkey.get().unwrap();
+            if prc == ord.price() {
+                qty += ord.remain_qty();
+                continue
+            }
+            self.last_oid = ord.oid();
+            return Some((prc, qty))
+        }
+        self.last_oid = 0;
+        Some((prc, qty))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use simple_logger::SimpleLogger;
-    use log::{info, warn, LevelFilter};
+    use log::{info, warn, error, LevelFilter};
     use super::OrderBook;
     use match_base::OrderPool;
     use rand::Rng;
@@ -189,6 +235,36 @@ mod tests {
     }
 
     #[test]
+    fn test_orderbook_pv() {
+        if let Err(s) = SimpleLogger::new().init() {
+            warn!("SimpleLogger init: {}", s);
+        }
+        log::set_max_level(LevelFilter::Info);
+        info!("build orderBook");
+        let pool = OrderPool::new();
+        let mut orb = OrderBook::new(1, "cu1906");
+        let b_buy = true;
+        let ord = pool.new_order(1, b_buy, 30000, 10).unwrap();
+        orb.insert(b_buy, ord);
+        let ord = pool.new_order(1, b_buy, 30000, 15).unwrap();
+        orb.insert(b_buy, ord);
+        let ord = pool.new_order(1, b_buy, 31000, 18).unwrap();
+        orb.insert(b_buy, ord);
+        let mut pv_it = orb.pv_iter(true);
+        let opv = pv_it.next();
+        assert!(opv != None);
+        let (prc, vol) = opv.unwrap();
+        assert_eq!(prc, 31000);
+        assert_eq!(vol, 18);
+        let opv = pv_it.next();
+        assert!(opv != None);
+        let (prc, vol) = opv.unwrap();
+        assert_eq!(prc, 30000);
+        assert_eq!(vol, 25);
+        assert!(pv_it.next() == None);
+    }
+
+    #[test]
     #[ignore]
     fn bench_orderbook() {
         if let Err(s) = SimpleLogger::new().init() {
@@ -207,22 +283,26 @@ mod tests {
             let b_buy: bool = (rng.gen::<u32>() & 1) != 0;
             qty %= 1000;
             qty += 1;
-            let ord = pool.new_order(1, b_buy, price, qty).unwrap();
-            orb.insert(b_buy, ord);
+            if let Some(ord) = pool.new_order(1, b_buy, price, qty) {
+                orb.insert(b_buy, ord);
+            } else {
+                error!("OrderPool new_order failed");
+                break
+            }
         }
         measure.stop();
         let ns_ops = measure.as_ns() / (N as u64);
         assert!(ns_ops < 10_000);
-        println!("build orderBook cost {} ms, bids: {}, asks: {}",
-                 measure.as_ms(), orb.bids.len(), orb.asks.len());
+        println!("build orderBook cost {} us, bids: {}, asks: {}",
+                 measure.as_us(), orb.bids.len(), orb.asks.len());
         println!("orderBook insert cost {} ns per Op", ns_ops);
         let mut measure = Measure::start("orderbook bench");
         let valid = orb.validate();
         measure.stop();
         let ns_ops = measure.as_ns() / (N as u64);
         assert!(ns_ops < 10_000);
-        println!("validate orderBook cost {} ms, bids: {}, asks: {}",
-                 measure.as_ms(), orb.bids.len(), orb.asks.len());
+        println!("validate orderBook cost {} us, bids: {}, asks: {}",
+                 measure.as_us(), orb.bids.len(), orb.asks.len());
         assert!(valid, "orderBook disorder");
     }
 }
