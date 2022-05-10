@@ -193,6 +193,116 @@ impl MatchEngine {
         self.deals.push_deal(ord.oid(), price, vol);
         // should pushDeal to mdCache as well
     }
+    // return  (last, max_qty, remain_qty)
+    fn uncross(&mut self, sym: u32, pclose: i32) -> Option<(i32,u32,u32)> {
+        let orb = self.book.get(&sym);
+        if orb == None { return None }
+        let orb = orb.unwrap();
+        let mut bit = orb.pv_iter(true);
+        let mut ait = orb.pv_iter(false);
+        let bp = bit.next();
+        let ap = ait.next();
+        if bp == None || ap == None { return None }
+        let (mut bp, mut bvol) = bp.unwrap();
+        let (mut ap, mut avol) = ap.unwrap();
+        let (best_bid, best_ask) = (bp, ap);
+        let mut max_qty: u32 = 0;
+        let mut remain_qty: u32 = 0;
+        let mut last: i32 = pclose;
+        info!("sym({}) MatchCross BBS: {}/{}", sym, bp, ap);
+        while bvol != 0 && avol != 0 && bp >= ap {
+            if bvol > avol {
+                max_qty += avol;
+                bvol -= avol;
+                remain_qty = bvol;
+                last = ap;
+                if let Some((p,v)) = ait.next() {
+                    ap = p;
+                    avol = v;
+                } else {
+                    break
+                }
+            } else if bvol < avol {
+                max_qty += bvol;
+                avol -= bvol;
+                remain_qty = avol;
+                last = bp;
+                if let Some((p,v)) = ait.next() {
+                    bp = p;
+                    bvol = v;
+                } else {
+                    break
+                }
+            } else {
+                max_qty += bvol;
+                remain_qty = 0;
+                if bp == ap {
+                    last = bp;
+                    break
+                }
+                let oap = ap;
+                let obp = bp;
+                let b_end: bool;
+                let a_end: bool;
+                if let Some((p,v)) = bit.next() {
+                    b_end =  p < best_ask;
+                    bp = p;
+                    bvol = v;
+                } else {
+                    b_end = true;
+                }
+                if let Some((p,v)) = ait.next() {
+                    a_end =  p > best_bid;
+                    ap = p;
+                    avol = v;
+                } else {
+                    a_end = true;
+                }
+                if b_end && a_end {
+                    if oap > pclose {
+                        last = oap;
+                    } else if obp < pclose {
+                        last = obp;
+                    } else {
+                        last = pclose;
+                    }
+                    break
+                }
+                if b_end { last = oap }
+                if a_end { last = obp }
+            }
+        }
+        Some((last, max_qty, remain_qty))
+    }
+    pub fn match_cross(&mut self, sym: u32, pclose: i32)
+    -> Option<(i32,u32,u32)> {
+        // only uncross on PreAuction
+        if self.state != State::StatePreAuction {
+            return None
+        } else {
+            self.uncross(sym, pclose)
+        }
+    }
+    #[cfg(test)]
+    pub fn build_orders(&mut self, sym: u32, orders: &str) -> bool {
+        let mut it = orders.lines();
+        while let Some(aline) = it.next() {
+            let v: Vec<&str> = aline.split(',').collect();
+            if v.len() < 4 { continue }
+            if let Ok(prc) = v[1].parse::<i32>() {
+                if let Ok(qty) = v[2].parse::<u32>() {
+                    let buy: bool = if let Ok(bb) = v[3].parse::<u8>() {
+                                        bb != 0
+                                    } else { false };
+                    if self.send_order(sym, buy, prc, qty) == None {
+                        warn!("send_order failed");
+                        return false
+                    }
+                } else { continue }
+            } else { continue }
+        }
+        true
+    }
 }
 
 #[cfg(test)]

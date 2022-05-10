@@ -250,7 +250,7 @@ mod tests {
         orb.insert(b_buy, ord);
         let ord = pool.new_order(1, b_buy, 31000, 18).unwrap();
         orb.insert(b_buy, ord);
-        let mut pv_it = orb.pv_iter(true);
+        let mut pv_it = orb.pv_iter(b_buy);
         let opv = pv_it.next();
         assert!(opv != None);
         let (prc, vol) = opv.unwrap();
