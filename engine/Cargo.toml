@@ -10,6 +10,7 @@ match-base = { path = "../match-base" }
 measure = { path = "../measure" }
 log = "0.4"
 rand = "0.4"
+zstd = "0.11"
 
 [dependencies.simple_logger]
 version = "2.1"
