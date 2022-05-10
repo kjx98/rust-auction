@@ -78,7 +78,7 @@ impl State {
             },
             State::StateStop => {
                 match *self {
-                StateStart | StateTrading | StateBreak | StatePause => true,
+                StateTrading | StateBreak | StatePreAuction => true,
                 _ => false
                 }
             },

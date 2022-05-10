@@ -99,9 +99,6 @@ impl MatchEngine {
                     // clear orderBooks
                     let mut it = self.book.iter_mut();
                     while let Some((_, ob)) = it.next() {
-                        if !ob.validate() {
-                            warn!("{} orderBook validate failed", ob.symbol());
-                        }
                         ob.clear();
                     }
                 },
@@ -212,12 +209,17 @@ impl MatchEngine {
         if bp == None || ap == None { return None }
         let (mut bp, mut bvol) = bp.unwrap();
         let (mut ap, mut avol) = ap.unwrap();
+        if bp < ap { return None }
         let (best_bid, best_ask) = (bp, ap);
         let mut max_qty: u32 = 0;
         let mut remain_qty: u32 = 0;
         let mut last: i32 = pclose;
+        let mut b_end = false;
+        let mut a_end = false;
         info!("sym({}) MatchCross BBS: {}/{}", sym, bp, ap);
-        while bvol != 0 && avol != 0 && bp >= ap {
+        //while bp >= ap
+        while !b_end && !a_end && bp >= ap
+        {
             if bvol > avol {
                 max_qty += avol;
                 bvol -= avol;
@@ -234,7 +236,7 @@ impl MatchEngine {
                 avol -= bvol;
                 remain_qty = avol;
                 last = bp;
-                if let Some((p,v)) = ait.next() {
+                if let Some((p,v)) = bit.next() {
                     bp = p;
                     bvol = v;
                 } else {
@@ -243,25 +245,23 @@ impl MatchEngine {
             } else {
                 max_qty += bvol;
                 remain_qty = 0;
+                last = bp;
                 if bp == ap {
-                    last = bp;
                     break
                 }
                 let oap = ap;
                 let obp = bp;
-                let b_end: bool;
-                let a_end: bool;
                 if let Some((p,v)) = bit.next() {
-                    b_end =  p < best_ask;
                     bp = p;
                     bvol = v;
+                    b_end = bp < best_ask;
                 } else {
                     b_end = true;
                 }
                 if let Some((p,v)) = ait.next() {
-                    a_end =  p > best_bid;
                     ap = p;
                     avol = v;
+                    a_end = ap > best_bid;
                 } else {
                     a_end = true;
                 }
@@ -278,7 +278,11 @@ impl MatchEngine {
                 if b_end { last = oap }
                 if a_end { last = obp }
             }
+            info!("update MatchCross price: {} {}/{} volume: {}(left: {})",
+                    last, bp, ap, max_qty, remain_qty);
         }
+        info!("symbol({}) MatchCross end, bp/ap: {}/{} volume: {}(left: {})",
+                sym, bp, ap, max_qty, remain_qty);
         Some((last, max_qty, remain_qty))
     }
     pub fn match_cross(&mut self, sym: u32, pclose: i32)
@@ -295,12 +299,12 @@ impl MatchEngine {
         let mut it = orders.lines();
         let mut order_cnt = 0;
         while let Some(aline) = it.next() {
-            info!("send order: {}", aline);
+            //info!("send order: {}", aline);
             let v: Vec<&str> = aline.split(',').collect();
             if v.len() < 4 { continue }
             if let Ok(prc) = v[1].trim().parse::<i32>() {
                 if let Ok(qty) = v[2].trim().parse::<u32>() {
-                    let buy: bool = if let Ok(bb) = v[3].trim().parse::<u8>() {
+                    let buy: bool = if let Ok(bb) = v[3].trim().parse::<i32>() {
                                         bb != 0
                                     } else { false };
                     if self.send_order(sym, buy, prc, qty) == None {
@@ -308,6 +312,10 @@ impl MatchEngine {
                         return false
                     }
                     order_cnt += 1;
+                    /*
+                    info!("send order {}: buy({}) {} @{}", order_cnt, buy,
+                            qty, prc);
+                    */
                 } else { continue }
             } else { continue }
         }
@@ -380,6 +388,13 @@ mod tests {
 5, 43200, 10, 0\n\
 6, 43900, 25, 1\n\
 7, 43200, 20, 0\n";
+        let orders3 = "1, 43000, 20, 1\n\
+2, 44000, 50, 1\n\
+3, 43900, 15, 1\n\
+4, 45000, 10, 0\n\
+5, 43500, 45, 0\n\
+6, 43200, 10, 0\n\
+7, 43200, 20, 0\n";
         let mut me = MatchEngine::new();
         assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
@@ -388,8 +403,32 @@ mod tests {
         let orb = me.book(1);
         assert!(orb != None);
         let mc_ret = me.match_cross(1, 40000);
-        assert!(mc_ret != None);
-        let (last, maxvol, remvol) = mc_ret.unwrap();
-        assert_eq!(mc_ret.unwrap(), (43900, 75, 0));
+        assert!(mc_ret == Some((43900, 75, 0)));
+        let mc_ret = me.match_cross(1, 50000);
+        assert!(mc_ret == Some((43900, 75, 0)));
+        assert!(me.stop_trading());
+        assert!(me.init_market());
+        //let mut me = MatchEngine::new();
+        //assert!(me.state.eq(&State::StateIdle));
+        assert!(me.begin_market());
+        assert!(me.start_market());
+        assert!(me.build_orders(1, orders2));
+        let orb = me.book(1);
+        assert!(orb != None);
+        let mc_ret = me.match_cross(1, 40000);
+        assert!(mc_ret == Some((43500, 75, 0)));
+        let mc_ret = me.match_cross(1, 50000);
+        assert!(mc_ret == Some((43900, 75, 0)));
+        assert!(me.stop_trading());
+        assert!(me.init_market());
+        assert!(me.begin_market());
+        assert!(me.start_market());
+        assert!(me.build_orders(1, orders3));
+        let orb = me.book(1);
+        assert!(orb != None);
+        let mc_ret = me.match_cross(1, 40000);
+        assert!(mc_ret == Some((43900, 65, 10)));
+        let mc_ret = me.match_cross(1, 50000);
+        assert!(mc_ret == Some((43900, 65, 10)));
     }
 }
