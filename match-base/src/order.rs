@@ -501,27 +501,35 @@ mod tests {
                  or_maps.len(), ns_ops);
         // can't borrow mut twice, iter/remove
         // retain faster than remove for whole tree remove
+        // split_off is fastest for remove some keys
+        //let mid_key = OrderKey::from(1_000_000).get().unwrap().to_OidPrice();
         let cnt = or_maps.len();
-        /*
         let mut keys = Vec::<OidPrice>::new(); 
         {
             for key in or_maps.values() {
                 keys.push(key.get().unwrap().to_OidPrice());
             }
         }
-        */
         let mut measure = Measure::start("orderbook remove bench");
-        /*
         for key in keys {
             or_maps.remove(& key);
         }
-        */
-        or_maps.retain(|_, _| false);
+        // keep btree keys .. mid_key and larger
+        //or_maps = or_maps.split_off(&mid_key);
+        //or_maps.retain(|_, _| false);
         measure.stop();
         assert!(or_maps.len() == 0);
         let ns_ops = measure.as_ns() / (cnt as u64);
         assert!(ns_ops < 10_000);
-        println!("orderPool orderBook remove cost {}ms, {} ns per Op",
-                 measure.as_ms(), ns_ops);
+        println!("orderPool orderBook remove cost {}us, {} ns per Op",
+                 measure.as_us(), ns_ops);
+        //println!("or_maps len: {}", or_maps.len());
+        //println!("orderPool orderBook remove cost {}us", measure.as_us());
+        /*
+        let mut measure = Measure::start("orderbook remove bench");
+        or_maps.clear();
+        measure.stop();
+        println!("orderPool orderBook clear cost {}us", measure.as_us());
+        */
     }
 }
