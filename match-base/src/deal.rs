@@ -1,10 +1,13 @@
 use std::fmt;
 use std::sync::{Once, atomic};
 
+// mid ... match id u32 as well
+// oid ... order id u32
 #[derive(Eq, Clone, Default)]
 pub struct Deal {
     no:     u64,
-    oid:    u64,
+    mid:    u32,
+    oid:    u32,
     price:  i32,
     qty:    u32,
 }
@@ -15,6 +18,7 @@ const MAX_DEALS: u32 = 30_000_000;
 static INIT: Once = Once::new();
 static mut DEAL_POOL: Vec<Deal> = Vec::new();
 static mut DEAL_NO: u64 = 0;
+static mut MATCH_NO: u32 = 0;
 static mut POOL_LOCK: atomic::AtomicBool = atomic::AtomicBool::new(false);
 //static mut DEAL_POOL: &mut [Deal] = &mut [];
 //unsafe { DEAL_POOL = std::slice::from_raw_parts_mut( data: *mut Order, len: usize) }
@@ -35,6 +39,7 @@ pub fn clear_deals() {
             std::thread::yield_now();
         }
         DEAL_NO = 0;
+        MATCH_NO = 0;
         DEAL_POOL.clear();
         POOL_LOCK.store(false, atomic::Ordering::Release);
     }
@@ -42,13 +47,14 @@ pub fn clear_deals() {
 
 
 impl Deal {
-    pub const fn new(no: u64, oid: u64, price: i32, qty: u32) -> Deal {
-        Deal {no, oid, price, qty}
+    pub const fn new(no: u64, mid: u32, oid: u32, price: i32, qty: u32)
+    -> Deal {
+        Deal {no, mid, oid, price, qty}
     }
     pub fn no(&self) -> u64 {
         self.no
     }
-    pub fn oid(&self) -> u64 {
+    pub fn oid(&self) -> u32 {
         self.oid
     }
     pub fn price(&self) -> i32 {
@@ -66,6 +72,11 @@ impl DealPool {
         });
         DealPool()
     }
+    pub fn new_match() {
+        unsafe {
+            MATCH_NO += 1;
+        }
+    }
     pub fn reserve(siz: usize) {
         unsafe {
                 while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
@@ -75,7 +86,7 @@ impl DealPool {
             POOL_LOCK.store(false, atomic::Ordering::Release);
         }
     }
-    pub fn push_deal(&self, oid: u64, price: i32, qty: u32) -> bool {
+    pub fn push_deal(&self, oid: u32, price: i32, qty: u32) -> bool {
         let  v_len: usize;
         unsafe {
             v_len = DEAL_POOL.len();
@@ -87,8 +98,9 @@ impl DealPool {
                 while POOL_LOCK.swap(true, atomic::Ordering::Acquire) {
                     std::thread::yield_now();
                 }
+                let mid = MATCH_NO;
                 let v_len = DEAL_POOL.len() as u64;
-                DEAL_POOL.push(Deal::new(v_len+1, oid, price, qty));
+                DEAL_POOL.push(Deal::new(v_len+1, mid, oid, price, qty));
                 DEAL_NO = DEAL_POOL.len() as u64;
                 POOL_LOCK.store(false, atomic::Ordering::Release);
             }
@@ -125,7 +137,7 @@ impl DealPool {
 
 impl PartialEq for Deal {
     fn eq(&self, rhs: &Self) -> bool {
-        self.no == rhs.no && self.oid == rhs.oid &&
+        self.no == rhs.no && self.oid == rhs.oid && self.mid == rhs.mid &&
             self.price == rhs.price && self.qty == rhs.qty
     }
 }
@@ -144,10 +156,10 @@ mod tests {
     #[test]
     fn test_dealv() {
         let deals = DealPool::new();
-        let deals1 = vec![Deal::new(1,4, 43500, 45),
-                        Deal::new(2, 8, 43500, 45),
-                        Deal::new(3, 4, 43500, 5),
-                        Deal::new(0, 0, 0, 0) ];
+        let deals1 = vec![Deal::new(1, 0, 4, 43500, 45),
+                        Deal::new(2, 0, 8, 43500, 45),
+                        Deal::new(3, 0, 4, 43500, 5),
+                        Deal::new(0, 0, 0, 0, 0) ];
         for de in &deals1 {
             if de.no() == 0 { break }
             deals.push_deal(de.oid(), de.price(), de.qty());

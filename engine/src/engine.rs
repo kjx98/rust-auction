@@ -195,7 +195,7 @@ impl MatchEngine {
     #[inline]
     pub fn set_fill(&mut self, ord: &mut Order, vol: u32, price: i32) {
         ord.fill(vol, price);
-        self.deals.push_deal(ord.oid(), price, vol);
+        self.deals.push_deal(ord.oid() as u32, price, vol);
         // should pushDeal to mdCache as well
     }
     // return  (last, max_qty, remain_qty)
@@ -419,14 +419,14 @@ mod tests {
             warn!("SimpleLogger init: {}", s);
         }
         log::set_max_level(LevelFilter::Info);
-        let deals1 = vec![Deal::new(1, 4, 43500, 45),
-                        Deal::new(2, 8, 43500, 45),
-                        Deal::new(3, 4, 43200, 5),
-                        Deal::new(4, 10, 43200, 5),
-                        Deal::new(5, 9, 43200, 5),
-                        Deal::new(6, 10, 43200, 5),
-                        Deal::new(7, 9, 43200, 20),
-                        Deal::new(8, 12, 43200, 20)];
+        let _deals1 = vec![Deal::new(1, 0, 4, 43500, 45),
+                        Deal::new(2, 0, 8, 43500, 45),
+                        Deal::new(3, 0, 4, 43200, 5),
+                        Deal::new(4, 0, 10, 43200, 5),
+                        Deal::new(5, 0, 9, 43200, 5),
+                        Deal::new(6, 0, 10, 43200, 5),
+                        Deal::new(7, 0, 9, 43200, 20),
+                        Deal::new(8, 0, 12, 43200, 20)];
         let orders1 = "1, 42000, 10, 1\n\
 2,43000,20,1\n\
 3,41000,30,1\n\
@@ -507,6 +507,7 @@ mod tests {
         let mut measure = Measure::start("cross bench");
         let mc_ret = me.match_cross(1, 50000);
         measure.stop();
+        assert!(Some((50500, 2753442, 25718)) == mc_ret);
         let (last, qty, rem_qty) = mc_ret.unwrap();
         info!("MatchCross last: {}, volume: {}, remain: {}",
               last, qty, rem_qty);

@@ -191,9 +191,18 @@ impl fmt::Display for Order {
     }
 }
 
+impl Default for OrderKey {
+    fn default() -> Self {
+        OrderKey(0)
+    }
+}
+
 impl OrderKey {
     pub const fn from(id: Oid) -> OrderKey {
         OrderKey(id as u32)
+    }
+    pub fn is_null(&self) -> bool {
+        self.0 == 0
     }
     pub fn key(&self) -> u32 {
         self.0
@@ -324,6 +333,9 @@ mod tests {
         or4.cancel();
         assert!(or4.is_canceled());
         assert_eq!(or4.remain_qty(), 0);
+        let okey: OrderKey = Default::default();
+        assert!(okey.is_null());
+        assert_eq!(okey.key(), 0);
         println!("sizeof Order: {}", mem::size_of::<Order>());
         println!("sizeof OidPrice: {}", mem::size_of::<OidPrice>());
         println!("sizeof OrderKey: {}", mem::size_of::<OrderKey>());
