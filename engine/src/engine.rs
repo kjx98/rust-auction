@@ -14,7 +14,7 @@ pub struct MatchEngine {
     deals:  DealPool,
 }
 
-#[allow(dead_code)]
+//#[allow(dead_code)]
 #[inline]
 fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     if buy {
@@ -77,11 +77,26 @@ fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
     fill_qty
 }
 
-fn set_fill(ord: &mut Order, vol: u32, price: i32) {
+#[inline]
+fn set_fill(deals: &DealPool, ord: &mut Order, vol: u32, price: i32) {
         ord.fill(vol, price);
-        let deals = DealPool::new();
         deals.push_deal(ord.oid() as u32, price, vol);
         // should pushDeal to mdCache as well
+}
+
+#[inline]
+fn parse_orderfile(aline: &str) -> Option<(bool, i32, u32)> {
+    //info!("send order: {}", aline);
+    let v: Vec<&str> = aline.split(',').collect();
+    if v.len() < 4 { return None }
+    if let Ok(prc) = v[1].trim().parse::<i32>() {
+        if let Ok(qty) = v[2].trim().parse::<u32>() {
+            let buy: bool = if let Ok(bb) = v[3].trim().parse::<i32>() {
+                                bb != 0 } else { false };
+            return Some((buy, prc, qty))
+        }
+    }
+    None
 }
 
 impl MatchEngine {
@@ -239,7 +254,7 @@ impl MatchEngine {
                     sum -= fill_qty;
                     //ord.fill(fill_qty, last);
                     //self.deals.push_deal(ord.oid() as u32, last, fill_qty);
-                    set_fill(ord, fill_qty, last);
+                    set_fill(& self.deals, ord, fill_qty, last);
                     if ord.remain_qty() > 0 {
                         okey = ord.key();
                     }
@@ -377,7 +392,17 @@ impl MatchEngine {
             return false
         }
         if let Ok(sbuf) = std::str::from_utf8(buff.as_slice()) {
-            let cnt = self.build_orders(sym, sbuf);
+            let mut it = sbuf.lines();
+            let mut cnt: u32 = 0;
+            while let Some(aline) = it.next() {
+                if let Some((buy, prc, qty)) = parse_orderfile(aline) {
+                    if self.send_order(sym, buy, prc, qty) == None {
+                        warn!("send_order failed");
+                        return false
+                    }
+                    cnt += 1;
+                } else { continue }
+            }
             measure.stop();
             println!("load {} orders from {} cost {}ms", cnt, filen,
                   measure.as_ms());
@@ -386,29 +411,26 @@ impl MatchEngine {
         }
         true
     }
-    pub fn build_orders(&mut self, sym: u32, orders: &str) -> u32 {
+    #[cfg(test)]
+    pub fn build_orders(&mut self, sym: u32, orders: &str) -> Vec<u64> {
         let mut it = orders.lines();
-        let mut order_cnt: u32 = 0;
+        let mut cnt: u32 = 0;
+        let mut ov = Vec::<u64>::new();
         while let Some(aline) = it.next() {
             //info!("send order: {}", aline);
-            let v: Vec<&str> = aline.split(',').collect();
-            if v.len() < 4 { continue }
-            if let Ok(prc) = v[1].trim().parse::<i32>() {
-                if let Ok(qty) = v[2].trim().parse::<u32>() {
-                    let buy: bool = if let Ok(bb) = v[3].trim().parse::<i32>() {
-                                        bb != 0
-                                    } else { false };
-                    if self.send_order(sym, buy, prc, qty) == None {
-                        warn!("send_order failed");
-                        return 0
-                    }
-                    order_cnt += 1;
-                } else { continue }
+            if let Some((buy, prc, qty)) = parse_orderfile(aline) {
+                if let Some(oid) = self.send_order(sym, buy, prc, qty) {
+                    ov.push(oid);
+                } else {
+                    warn!("send_order failed");
+                    return ov;
+                }
+                cnt += 1;
             } else { continue }
         }
         #[cfg(test)]
-        info!("build {} orders for symbol({})", order_cnt, sym);
-        order_cnt
+        info!("build {} orders for symbol({})", cnt, sym);
+        ov
     }
 }
 
@@ -466,7 +488,7 @@ mod tests {
         assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
         assert!(me.start_market());
-        assert_eq!(me.build_orders(1, orders1), 12);
+        assert_eq!(me.build_orders(1, orders1).len(), 12);
         let orb = me.book(1);
         assert!(orb != None);
         let mc_ret = me.match_cross(1, 40000);
@@ -521,7 +543,7 @@ mod tests {
         assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
         assert!(me.start_market());
-        assert_eq!(me.build_orders(1, orders1), 12);
+        assert_eq!(me.build_orders(1, orders1).len(), 12);
         let orb = me.book(1);
         assert!(orb != None);
         let mc_ret = me.match_cross(1, 40000);
@@ -534,7 +556,7 @@ mod tests {
         //assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
         assert!(me.start_market());
-        assert!(me.build_orders(1, orders2) == 7);
+        assert!(me.build_orders(1, orders2).len() == 7);
         let orb = me.book(1);
         assert!(orb != None);
         let mc_ret = me.match_cross(1, 40000);
@@ -545,7 +567,7 @@ mod tests {
         assert!(me.init_market());
         assert!(me.begin_market());
         assert!(me.start_market());
-        assert_eq!(me.build_orders(1, orders3), 7);
+        assert_eq!(me.build_orders(1, orders3).len(), 7);
         let orb = me.book(1);
         assert!(orb != None);
         let mc_ret = me.match_cross(1, 40000);
@@ -566,8 +588,15 @@ mod tests {
         assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
         assert!(me.start_market());
-        assert!(me.load_orders(1, "/tmp/long.txt.zst"));
-        assert!(me.load_orders(1, "/tmp/short.txt.zst"));
+        let long_filen: &str = "/tmp/long.txt.zst";
+        let short_filen: &str = "/tmp/short.txt.zst";
+        if ! std::path::Path::new(long_filen).exists() {
+            // skip follow
+            warn!("no long/short orders file, SKIP match_cross bench");
+            return
+        }
+        assert!(me.load_orders(1, long_filen));
+        assert!(me.load_orders(1, short_filen));
         //println!("Before UnCross qlen: {}/{}", blen, alen);
         let mut measure = Measure::start("cross bench");
         let mc_ret = me.match_cross(1, 50000);
