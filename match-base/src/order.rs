@@ -484,7 +484,7 @@ mod tests {
         let mut or_maps = BTreeMap::<OidPrice, OrderKey>::new();
         let mut rng = rand::thread_rng();
         let mut measure = Measure::start("orderbook bench");
-        const N: u32 = 2_000_000;
+        const N: usize = 2_000_000;
         for _it in 0 .. N {
             let price = rng.gen::<i32>();
             let mut qty: u32 = rng.gen::<u32>();
@@ -499,18 +499,29 @@ mod tests {
         assert!(ns_ops < 10_000);
         println!("orderPool orderBook insert {} orders cost {} ns per Op",
                  or_maps.len(), ns_ops);
-        /*
-         // can't borrow mut twice, iter/remove
+        // can't borrow mut twice, iter/remove
+        // retain faster than remove for whole tree remove
         let cnt = or_maps.len();
-        let mut measure = Measure::start("orderbook remove bench");
-        let mut it = or_maps.iter();
-        while let Some((key, orkey)) = it.next() {
-            or_maps.remove(key);
+        /*
+        let mut keys = Vec::<OidPrice>::new(); 
+        {
+            for key in or_maps.values() {
+                keys.push(key.get().unwrap().to_OidPrice());
+            }
         }
+        */
+        let mut measure = Measure::start("orderbook remove bench");
+        /*
+        for key in keys {
+            or_maps.remove(& key);
+        }
+        */
+        or_maps.retain(|_, _| false);
         measure.stop();
+        assert!(or_maps.len() == 0);
         let ns_ops = measure.as_ns() / (cnt as u64);
         assert!(ns_ops < 10_000);
-        println!("orderPool orderBook remove cost {} ns per Op", ns_ops);
-        */
+        println!("orderPool orderBook remove cost {}ms, {} ns per Op",
+                 measure.as_ms(), ns_ops);
     }
 }
