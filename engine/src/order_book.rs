@@ -58,6 +58,21 @@ impl OrderBook {
     pub fn len(&self) -> (usize, usize) {
         (self.bids.len(), self.asks.len())
     }
+    pub fn retain(&mut self, buy: bool, okey: OrderKey) {
+        let ord = okey.get().unwrap();
+        let key = ord.to_OidPrice();
+        if buy {
+            self.bids = self.bids.split_off(&key);
+            if ord.is_filled() {
+                self.bids.remove(&key);
+            }
+        } else {
+            self.asks = self.asks.split_off(&key);
+            if ord.is_filled() {
+                self.asks.remove(&key);
+            }
+        }
+    }
     //#[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
         if buy {

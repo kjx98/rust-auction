@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 //use std::default::Default;
-use match_base::{Order, OrderPool, DealPool, Symbols};
+use match_base::{Order, OrderKey, OrderPool, DealPool, Symbols};
 use crate::{State};
 use crate::order_book::OrderBook;
 use measure::Measure;
@@ -75,6 +75,13 @@ fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
         }
     }
     fill_qty
+}
+
+fn set_fill(ord: &mut Order, vol: u32, price: i32) {
+        ord.fill(vol, price);
+        let deals = DealPool::new();
+        deals.push_deal(ord.oid() as u32, price, vol);
+        // should pushDeal to mdCache as well
 }
 
 impl MatchEngine {
@@ -195,15 +202,60 @@ impl MatchEngine {
     pub fn book(&self, sym: u32) -> Option<&OrderBook> {
         self.book.get(&sym)
     }
-    #[inline]
-    pub fn set_fill(&mut self, ord: &mut Order, vol: u32, price: i32) {
-        ord.fill(vol, price);
-        self.deals.push_deal(ord.oid() as u32, price, vol);
-        // should pushDeal to mdCache as well
-    }
     pub fn uncross(&mut self, sym: u32, last: i32, qty: u32) -> bool {
-        if let Some(orb) = self.book.get(&sym) {
-            true
+        DealPool::new_match();
+        let mut measure = Measure::start("uncross bench");
+        info!("uncross {} bid side orders {} @{}", sym, qty, last);
+        if !self.uncross_side(sym, true, last, qty) {
+            warn!("uncross {} bid side error", sym);
+            return false
+        }
+        info!("uncross {} ask side orders {} @{}", sym, qty, last);
+        if !self.uncross_side(sym, false, last, qty) {
+            warn!("uncross {} ask side error", sym);
+            return false
+        }
+        measure.stop();
+        println!("MatchUnCross cost {}us", measure.as_us());
+        let orb = self.book.get(&sym).unwrap();
+        let (blen, alen) = orb.len();
+        println!("After uncross qlen: {}/{}", blen, alen);
+        true
+    }
+    fn uncross_side(&mut self, sym: u32, buy: bool, last: i32, qty: u32)
+    -> bool {
+        if let Some(orb) = self.book.get_mut(&sym) {
+            let (blen, alen) = orb.len();
+            info!("before uncross qlen: {}/{}", blen, alen);
+            let mut sum: u32 = qty;
+            let mut okey=OrderKey::new(0);
+            let mut it=orb.book(!buy).iter();
+            while let Some((_, oid)) = it.next() {
+                let ord = oid.get_mut().unwrap();
+                if may_match(!buy, ord.price(), last) {
+                    // fill
+                    let fill_qty = if sum >= ord.remain_qty()
+                                { ord.remain_qty() } else { sum };
+                    sum -= fill_qty;
+                    //ord.fill(fill_qty, last);
+                    //self.deals.push_deal(ord.oid() as u32, last, fill_qty);
+                    set_fill(ord, fill_qty, last);
+                    if ord.remain_qty() > 0 {
+                        okey = ord.key();
+                    }
+                    if sum == 0 {
+                        okey = ord.key();
+                        break
+                    }
+                } else {
+                    okey = ord.key();
+                    break
+                }
+            }
+            if !okey.is_null() {
+                orb.retain(!buy, okey);
+            }
+            sum == 0
         } else {
             error!("orderbook for symbol({}) NOT FOUND", sym);
             false
@@ -327,7 +379,7 @@ impl MatchEngine {
         if let Ok(sbuf) = std::str::from_utf8(buff.as_slice()) {
             let cnt = self.build_orders(sym, sbuf);
             measure.stop();
-            info!("load {} orders from {} cost {}ms", cnt, filen,
+            println!("load {} orders from {} cost {}ms", cnt, filen,
                   measure.as_ms());
         } else {
             return false
@@ -516,6 +568,7 @@ mod tests {
         assert!(me.start_market());
         assert!(me.load_orders(1, "/tmp/long.txt.zst"));
         assert!(me.load_orders(1, "/tmp/short.txt.zst"));
+        //println!("Before UnCross qlen: {}/{}", blen, alen);
         let mut measure = Measure::start("cross bench");
         let mc_ret = me.match_cross(1, 50000);
         measure.stop();
@@ -525,5 +578,6 @@ mod tests {
         println!("MatchCross last: {}, volume: {}, remain: {}",
               last, qty, rem_qty);
         println!("MatchCross cost {}us", measure.as_us());
+        assert!(me.uncross(1, last, qty), "uncross failed");
     }
 }
