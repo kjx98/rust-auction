@@ -23,7 +23,19 @@ test or_book ... bench:         336 ns/iter (+/- 28)
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 1 measured
 </pre>
+<br/>
+Benchmark for uncross 2 million orders
+<pre>
+---- engine::tests::bench_cross stdout ----
+load 1000000 orders from /tmp/long.txt.zst cost 594ms
+load 1000000 orders from /tmp/short.txt.zst cost 573ms
+MatchCross last: 50500, volume: 2753442, remain: 25718
+MatchCross cost 51619us
+MatchUnCross cost 122845us
+After uncross qlen: 499392/499164
+</pre>
+[![asciicast](https://asciinema.org/a/493578.svg)](https://asciinema.org/a/493578)
 
 ## TODO
-Benchmark Cross/Continue match (btree for orderBook)
+Benchmark Continue match (btree for orderBook)
 Cross for 2 million orders, buy/sell half/half
