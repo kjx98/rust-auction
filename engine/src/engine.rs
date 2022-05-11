@@ -201,11 +201,17 @@ impl MatchEngine {
         self.deals.push_deal(ord.oid() as u32, price, vol);
         // should pushDeal to mdCache as well
     }
+    pub fn uncross(&mut self, sym: u32, last: i32, qty: u32) -> bool {
+        if let Some(orb) = self.book.get(&sym) {
+            true
+        } else {
+            error!("orderbook for symbol({}) NOT FOUND", sym);
+            false
+        }
+    }
     // return  (last, max_qty, remain_qty)
-    fn uncross(&mut self, sym: u32, pclose: i32) -> Option<(i32,u32,u32)> {
-        let orb = self.book.get(&sym);
-        if orb == None { return None }
-        let orb = orb.unwrap();
+    fn try_uncross(&self, orb: &OrderBook, pclose: i32)
+    -> Option<(i32,u32,u32)> {
         let mut bit = orb.pv_iter(true);
         let mut ait = orb.pv_iter(false);
         let bp = bit.next();
@@ -220,7 +226,8 @@ impl MatchEngine {
         let mut last: i32 = pclose;
         let mut b_end = false;
         let mut a_end = false;
-        //info!("sym({}) MatchCross BBS: {}/{}", sym, bp, ap);
+        #[cfg(test)]
+        info!("sym({}) MatchCross BBS: {}/{}", orb.symbol(), bp, ap);
         while !b_end && !a_end && bp >= ap
         {
             if bvol > avol {
@@ -281,15 +288,13 @@ impl MatchEngine {
                 if b_end { last = oap }
                 if a_end { last = obp }
             }
-            /*
+            #[cfg(test)]
             info!("update MatchCross price: {} {}/{} volume: {}(left: {})",
                     last, bp, ap, max_qty, remain_qty);
-            */
         }
-        /*
+        #[cfg(test)]
         info!("symbol({}) MatchCross end, bp/ap: {}/{} volume: {}(left: {})",
-                sym, bp, ap, max_qty, remain_qty);
-        */
+                orb.symbol(), bp, ap, max_qty, remain_qty);
         Some((last, max_qty, remain_qty))
     }
     pub fn match_cross(&mut self, sym: u32, pclose: i32)
@@ -298,7 +303,10 @@ impl MatchEngine {
         if self.state != State::StatePreAuction {
             return None
         } else {
-            self.uncross(sym, pclose)
+            let orb = self.book.get(&sym);
+            if orb == None { return None }
+            let orb = orb.unwrap();
+            self.try_uncross(orb, pclose)
         }
     }
     pub fn load_orders(&mut self, sym: u32, filen: &str) -> bool {
@@ -346,7 +354,8 @@ impl MatchEngine {
                 } else { continue }
             } else { continue }
         }
-        //info!("build {} orders for symbol({})", order_cnt, sym);
+        #[cfg(test)]
+        info!("build {} orders for symbol({})", order_cnt, sym);
         order_cnt
     }
 }
@@ -510,10 +519,11 @@ mod tests {
         let mut measure = Measure::start("cross bench");
         let mc_ret = me.match_cross(1, 50000);
         measure.stop();
+        log::set_max_level(LevelFilter::Info);
         assert!(Some((50500, 2753442, 25718)) == mc_ret);
         let (last, qty, rem_qty) = mc_ret.unwrap();
-        info!("MatchCross last: {}, volume: {}, remain: {}",
+        println!("MatchCross last: {}, volume: {}, remain: {}",
               last, qty, rem_qty);
-        info!("MatchCross cost {}us", measure.as_us());
+        println!("MatchCross cost {}us", measure.as_us());
     }
 }

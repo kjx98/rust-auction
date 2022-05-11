@@ -75,6 +75,7 @@ impl OrderBook {
     }
     pub fn validate(&self) -> bool {
         // validate bids
+        #[cfg(test)]
         info!("validate bid orderBook for {}", self.sym_name);
         if self.bids.len() > 1 {
             let mut it = self.bids.iter();
@@ -113,6 +114,7 @@ impl OrderBook {
             }
         }
         // validate asks
+        #[cfg(test)]
         info!("validate ask orderBook for {}", self.sym_name);
         if self.asks.len() < 2 { return true }
         let mut it = self.asks.iter();
