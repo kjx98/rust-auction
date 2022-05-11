@@ -67,7 +67,9 @@ fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
                 return fill_qty
             }
             fill_qty += ord.remain_qty();
-            if qty != 0 && fill_qty >= qty {
+            //if qty != 0 && fill_qty >= qty
+            if fill_qty >= qty
+            {
                 break
             }
         }
@@ -94,8 +96,9 @@ impl MatchEngine {
             info!("do change state {}", new_state);
             match new_state {
                 State::StateIdle => {
-                    let pool = OrderPool::new();
-                    pool.init();        // clear orders
+                    // poll.init collision w/ order_book bench
+                    //let pool = OrderPool::new();
+                    //pool.init();        // clear orders
                     self.deals.clear();
                     // clear orderBooks
                     let mut it = self.book.iter_mut();
@@ -412,8 +415,8 @@ mod tests {
     }
 
     // clear orders cause order_book test fails since static orderPool
+    //#[ignore]
     #[test]
-    #[ignore]
     fn test_cross() {
         if let Err(s) = SimpleLogger::new().init() {
             warn!("SimpleLogger init: {}", s);

@@ -201,6 +201,9 @@ impl OrderKey {
     pub const fn from(id: Oid) -> OrderKey {
         OrderKey(id as u32)
     }
+    pub const fn new(id: u32) -> OrderKey {
+        OrderKey(id)
+    }
     pub fn is_null(&self) -> bool {
         self.0 == 0
     }

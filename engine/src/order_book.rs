@@ -55,7 +55,10 @@ impl OrderBook {
             OrderPriceQty { it: self.asks.iter(), last_oid: 0}
         }
     }
-    #[allow(dead_code)]
+    pub fn len(&self) -> (usize, usize) {
+        (self.bids.len(), self.asks.len())
+    }
+    //#[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
         if buy {
             &self.bids
@@ -228,6 +231,7 @@ mod tests {
         measure.stop();
         let ns_ops = measure.as_ns() / (N as u64);
         assert!(ns_ops < 10_000);
+        assert_eq!(orb.len(), (orb.bids.len(), orb.asks.len()));
         println!("build orderBook cost {} us, bids: {}, asks: {}",
                  measure.as_us(), orb.bids.len(), orb.asks.len());
         println!("orderBook insert cost {} ns per Op", ns_ops);
