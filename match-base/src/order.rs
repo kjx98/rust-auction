@@ -1,7 +1,11 @@
 use std::cmp::Ordering;
 use std::fmt;
-use std::default::Default;
 use std::sync::{Once, atomic};
+use log::warn;
+use tcmalloc::TCMalloc;
+
+#[global_allocator]
+static GLOBAL: TCMalloc = TCMalloc;
 
 type Oid = u64;
 
@@ -144,6 +148,7 @@ impl Order {
             return false
         }
         if vol + self.filled > self.qty {
+            warn!("overfill @Order.fill");
             self.filled = self.qty
         } else {
             self.filled += vol
@@ -294,10 +299,6 @@ mod tests {
     use std::mem;
     use measure::Measure;
     use rand::Rng;
-    use tcmalloc::TCMalloc;
-
-    #[global_allocator]
-    static GLOBAL: TCMalloc = TCMalloc;
 
     #[test]
     fn test_cmp() {

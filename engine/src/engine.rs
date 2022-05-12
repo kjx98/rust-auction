@@ -1,10 +1,8 @@
 use std::collections::HashMap;
-//use std::default::Default;
-use match_base::{Order, OrderKey, OrderPool, DealPool, Symbols};
-use crate::{State};
-use crate::order_book::OrderBook;
-use measure::Measure;
 use log::{error, info, warn};
+use measure::Measure;
+use match_base::{Order, OrderKey, OrderPool, DealPool, Symbols};
+use crate::{state::State, order_book::OrderBook};
 
 pub struct MatchEngine {
     state:  State,
@@ -128,8 +126,9 @@ impl MatchEngine {
                     }
                 },
                 State::StateCallAuction => {
+                    // TODO: FIXME
                     // do call auction
-                    // uncross
+                    // uncross all list symbols
                 },
                 _ => { },
             }
@@ -298,7 +297,7 @@ impl MatchEngine {
             false
         }
     }
-    // return  (last, max_qty, remain_qty)
+    // return  Option<(last, max_qty, remain_qty)>
     fn try_uncross(&self, orb: &OrderBook, pclose: i32)
     -> Option<(i32,u32,u32)> {
         let mut bit = orb.pv_iter(true);
@@ -463,10 +462,6 @@ mod tests {
     use crate::state::State;
     use match_base::Deal;
     use log::{info, warn, LevelFilter};
-    use tcmalloc::TCMalloc;
-
-    #[global_allocator]
-    static GLOBAL: TCMalloc = TCMalloc;
 
     #[test]
     fn test_inlines() {

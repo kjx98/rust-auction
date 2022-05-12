@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate bencher;
-extern crate rand;
 
 use std::collections::BTreeMap;
 use bencher::Bencher;

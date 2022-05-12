@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fmt;
-use std::default::Default;
 
 #[derive(PartialEq)]
 pub struct Symbol {

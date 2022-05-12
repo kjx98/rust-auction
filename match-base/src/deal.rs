@@ -1,6 +1,8 @@
-use std::fmt;
-use std::sync::{Once, atomic};
-use log::{info, warn};
+use {
+    std::fmt,
+    std::sync::{Once, atomic},
+    log::{info, warn}
+};
 
 // mid ... match id u32 as well
 // oid ... order id u32
