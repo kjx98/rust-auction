@@ -34,8 +34,21 @@ MatchCross cost 51619us
 MatchUnCross cost 122845us
 After uncross qlen: 499392/499164
 </pre>
-[![asciicast](https://asciinema.org/a/493578.svg)](https://asciinema.org/a/493578)
+<br/>
+Benchmark uncross and trading continue(total 4 millio orders)
+<pre>
+2022-05-12T04:02:17.615Z WARN [engine::engine::tests] SimpleLogger init: attempted to set a logger after the logging system was already initialized
+load 1000000 orders from /tmp/long.txt.zst cost 637ms
+load 1000000 orders from /tmp/short.txt.zst cost 566ms
+MatchCross last: 50500, volume: 2753442, remain: 25718
+MatchCross cost 48442us
+MatchUnCross cost 111169us
+After uncross qlen: 499392/499164
+TradingContinue cost 695ms, 347 ns per op
+TradingContinue order process: 2876005 per second
+</pre>
+[![asciicast](https://asciinema.org/a/493740.svg)](https://asciinema.org/a/493740)
 
-## TODO
+## TODO -- done
 Benchmark Continue match (btree for orderBook)
 Cross for 2 million orders, buy/sell half/half

@@ -463,6 +463,10 @@ mod tests {
     use crate::state::State;
     use match_base::Deal;
     use log::{info, warn, LevelFilter};
+    use tcmalloc::TCMalloc;
+
+    #[global_allocator]
+    static GLOBAL: TCMalloc = TCMalloc;
 
     #[test]
     fn test_inlines() {
@@ -599,6 +603,8 @@ mod tests {
     #[ignore]
     fn bench_cross() {
         use measure::Measure;
+        use rand::Rng;
+
         if let Err(s) = SimpleLogger::new().init() {
             warn!("SimpleLogger init: {}", s);
         }
@@ -620,12 +626,30 @@ mod tests {
         let mut measure = Measure::start("cross bench");
         let mc_ret = me.match_cross(1, 50000);
         measure.stop();
-        log::set_max_level(LevelFilter::Info);
         assert!(Some((50500, 2753442, 25718)) == mc_ret);
         let (last, qty, rem_qty) = mc_ret.unwrap();
         println!("MatchCross last: {}, volume: {}, remain: {}",
               last, qty, rem_qty);
         println!("MatchCross cost {}us", measure.as_us());
         assert!(me.uncross(1, last, qty), "uncross failed");
+        // now benchmark trading continue
+        assert!(me.call_auction()); // do nothing currently
+        assert!(me.start_trading());
+        const N: u32 = 2_000_000;
+        let mut rng = rand::thread_rng();
+        let mut measure = Measure::start("TC bench");
+        for _i in 0 .. N {
+            // send order
+            let price = (rng.gen::<i32>() % 10000) + 40000;
+            let qty: u32 = (rng.gen::<u32>() % 200) + 1;
+            let buy: bool = (rng.gen::<u32>() & 1) != 0;
+            me.send_order(1, buy, price, qty);
+        }
+        measure.stop();
+        let ns_ops = measure.as_ns() / (N as u64);
+        println!("TradingContinue cost {}ms, {} ns per op",
+                 measure.as_ms(), ns_ops);
+        let ops = 1_000_000 * (N as u64) / measure.as_us();
+        println!("TradingContinue order process: {} per second", ops);
     }
 }
