@@ -1,5 +1,6 @@
 use std::fmt;
 use std::sync::{Once, atomic};
+use log::{info, warn};
 
 // mid ... match id u32 as well
 // oid ... order id u32
@@ -126,11 +127,16 @@ impl DealPool {
         for adeal in v2 {
             if adeal.no == 0 { break }
             if let Some(vdeal) = self.get(adeal.no()) {
-                if vdeal != adeal { return false }
+                if vdeal != adeal {
+                    warn!("deal diff expect {} got {}", adeal, vdeal);
+                    return false
+                }
             } else {
+                warn!("deal({}) not FOUND", adeal.no);
                 return false
             }
         }
+        info!("deals equal");
         true
     }
 }

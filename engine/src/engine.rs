@@ -14,7 +14,6 @@ pub struct MatchEngine {
     deals:  DealPool,
 }
 
-//#[allow(dead_code)]
 #[inline]
 fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     if buy {
@@ -202,17 +201,40 @@ impl MatchEngine {
         Some(ord.oid())
     }
     #[inline]
-    pub fn try_match(&mut self, ord: &mut Order) -> bool {
+    pub fn try_match(&mut self, order: &mut Order) -> bool {
         // filled
-        let or_book = self.book.get_mut(& ord.symbol());
-        if or_book == None {
+        let orb = self.book.get_mut(& order.symbol());
+        if orb == None {
             return false
         }
-        let or_book = or_book.unwrap().book_mut(!ord.is_buy());
-        if or_book.len() == 0 {
+        let orb = orb.unwrap();
+        let buy = order.is_buy();
+        if orb.book(!buy).len() == 0 {
             return false
         }
-        true
+        let prc = order.price();
+        let mut qty = order.remain_qty();
+        let mut okey=OrderKey::new(0);
+        let mut it = orb.book(!buy).iter();
+        while let Some((_, oid)) = it.next() {
+            let orv = oid.get_mut().unwrap();
+            if may_match(buy, prc, orv.price()) {
+                // fill
+                let fill_qty = if qty > orv.remain_qty()
+                                { orv.remain_qty() } else { qty };
+                DealPool::new_match();  // increase match no
+                set_fill(& self.deals, orv, fill_qty, prc);
+                set_fill(& self.deals, order, fill_qty, prc);
+                //ord.fill(fill_qty, last);
+                //self.deals.push_deal(ord.oid() as u32, last, fill_qty);
+                qty -= fill_qty;
+                okey = orv.key();
+            } else { break }
+        }
+        if !okey.is_null() {
+            orb.retain(!buy, okey);
+        }
+        qty == 0
     }
     pub fn book(&self, sym: u32) -> Option<&OrderBook> {
         self.book.get(&sym)
@@ -247,7 +269,7 @@ impl MatchEngine {
             let mut it=orb.book(!buy).iter();
             while let Some((_, oid)) = it.next() {
                 let ord = oid.get_mut().unwrap();
-                if may_match(!buy, ord.price(), last) {
+                if may_match(buy, last, ord.price()) {
                     // fill
                     let fill_qty = if sum >= ord.remain_qty()
                                 { ord.remain_qty() } else { sum };
@@ -467,7 +489,8 @@ mod tests {
 
 
     #[test]
-    fn test_cross_one() {
+    fn test_trading() {
+        use match_base::DealPool;
         if let Err(s) = SimpleLogger::new().init() {
             warn!("SimpleLogger init: {}", s);
         }
@@ -487,32 +510,28 @@ mod tests {
         let mut me = MatchEngine::new();
         assert!(me.state.eq(&State::StateIdle));
         assert!(me.begin_market());
-        assert!(me.start_market());
-        assert_eq!(me.build_orders(1, orders1).len(), 12);
-        let orb = me.book(1);
-        assert!(orb != None);
-        let mc_ret = me.match_cross(1, 40000);
-        assert!(mc_ret == Some((43900, 75, 0)));
-        let mc_ret = me.match_cross(1, 50000);
-        assert!(mc_ret == Some((43900, 75, 0)));
+        assert!(me.start_trading());
+        let orders = me.build_orders(1, orders1);
+        assert_eq!(orders.len(), 12);
+        let deals1 = vec![Deal::new(1, 1, orders[3] as u32, 43500, 45),
+                        Deal::new(2, 1, orders[7] as u32, 43500, 45),
+                        Deal::new(3, 2, orders[3] as u32, 43200, 5),
+                        Deal::new(4, 2, orders[9] as u32, 43200, 5),
+                        Deal::new(5, 3, orders[8] as u32, 43200, 5),
+                        Deal::new(6, 3, orders[9] as u32, 43200, 5),
+                        Deal::new(7, 4, orders[8] as u32, 43200, 20),
+                        Deal::new(8, 4, orders[11] as u32, 43200, 20)];
+        let dealp = DealPool::new();
+        assert!(dealp.eq(&deals1));
     }
 
     // clear orders cause order_book test fails since static orderPool
-    //#[ignore]
     #[test]
     fn test_cross() {
         if let Err(s) = SimpleLogger::new().init() {
             warn!("SimpleLogger init: {}", s);
         }
         log::set_max_level(LevelFilter::Info);
-        let _deals1 = vec![Deal::new(1, 0, 4, 43500, 45),
-                        Deal::new(2, 0, 8, 43500, 45),
-                        Deal::new(3, 0, 4, 43200, 5),
-                        Deal::new(4, 0, 10, 43200, 5),
-                        Deal::new(5, 0, 9, 43200, 5),
-                        Deal::new(6, 0, 10, 43200, 5),
-                        Deal::new(7, 0, 9, 43200, 20),
-                        Deal::new(8, 0, 12, 43200, 20)];
         let orders1 = "1, 42000, 10, 1\n\
 2,43000,20,1\n\
 3,41000,30,1\n\
