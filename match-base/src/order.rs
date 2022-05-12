@@ -251,7 +251,7 @@ impl OrderPool {
         });
         OrderPool()
     }
-    pub fn init(&self) {
+    pub fn clear(&self) {
         clear_orders();
     }
     pub fn reserve(siz: usize) {

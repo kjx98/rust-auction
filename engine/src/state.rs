@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum State {
     StateIdle,
 	StateStart,
@@ -63,9 +63,10 @@ impl State {
                     false
                 }
             },
+            // only start/callAuction/pause can change state to trading
             State::StateTrading => {
                 match *self {
-                StateCallAuction | StatePause => true,
+                StateStart | StateCallAuction | StatePause => true,
                 _ => false
                 }
             },
@@ -107,14 +108,14 @@ mod tests {
     #[test]
     fn test_state() {
         let mut state: State = Default::default();
-        assert_eq!(state, State::StateIdle);
+        assert!(state == State::StateIdle);
         assert!(state.review(&State::StateStart));
         state = State::StateStart;
         assert!(!state.is_tc());
         assert!(!state.can_book());
         assert!(state.review(&State::StatePreAuction));
         assert!(!state.review(&State::StateCallAuction));
-        assert!(!state.review(&State::StateTrading));
+        assert!(state.review(&State::StateTrading));
         state = State::StatePreAuction;
         assert!(!state.is_tc());
         assert!(state.can_book());

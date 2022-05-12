@@ -72,10 +72,8 @@ impl DealPool {
         });
         DealPool()
     }
-    pub fn new_match() {
-        unsafe {
-            MATCH_NO += 1;
-        }
+    pub fn clear(&mut self) {
+        clear_deals();
     }
     pub fn reserve(siz: usize) {
         unsafe {
@@ -84,6 +82,11 @@ impl DealPool {
                 }
             DEAL_POOL.reserve(siz);
             POOL_LOCK.store(false, atomic::Ordering::Release);
+        }
+    }
+    pub fn new_match() {
+        unsafe {
+            MATCH_NO += 1;
         }
     }
     pub fn push_deal(&self, oid: u32, price: i32, qty: u32) -> bool {
@@ -118,9 +121,6 @@ impl DealPool {
             ret = &DEAL_POOL[idx as usize - 1];
         }
         Some(ret)
-    }
-    pub fn clear(&mut self) {
-        clear_deals();
     }
     pub fn eq(&self, v2: &Vec<Deal>) -> bool {
         for adeal in v2 {

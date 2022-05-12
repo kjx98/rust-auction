@@ -118,9 +118,9 @@ impl MatchEngine {
             info!("do change state {}", new_state);
             match new_state {
                 State::StateIdle => {
-                    // poll.init collision w/ order_book bench
+                    // poll.clear collision w/ order_book bench
                     //let pool = OrderPool::new();
-                    //pool.init();        // clear orders
+                    //pool.clear();        // clear orders
                     self.deals.clear();
                     // clear orderBooks
                     let mut it = self.book.iter_mut();

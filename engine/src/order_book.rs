@@ -73,7 +73,6 @@ impl OrderBook {
             }
         }
     }
-    //#[allow(dead_code)]
     pub fn book(&self, buy: bool) -> &OrderBookMap {
         if buy {
             &self.bids
