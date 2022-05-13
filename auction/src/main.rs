@@ -1,9 +1,10 @@
 use clap::Parser;
 use simple_logger::SimpleLogger;
-use log::{error, info, warn, LevelFilter};
 use rand::Rng;
 use measure::Measure;
 use engine::MatchEngine;
+#[allow(unused_imports)]
+use log::{error, info, warn, LevelFilter};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
