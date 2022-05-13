@@ -2,10 +2,10 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::sync::{Once, atomic};
 use log::warn;
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "android"))]
 use tcmalloc::TCMalloc;
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "android"))]
 #[global_allocator]
 static GLOBAL: TCMalloc = TCMalloc;
 

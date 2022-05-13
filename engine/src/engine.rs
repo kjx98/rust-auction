@@ -12,7 +12,7 @@ pub struct MatchEngine {
     deals:  DealPool,
 }
 
-#[inline]
+#[inline(always)]
 fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
     if buy {
         book_price >= take_price
@@ -22,7 +22,7 @@ fn may_match(buy: bool, book_price: i32, take_price: i32) -> bool {
 }
 
 #[allow(dead_code)]
-#[inline]
+#[inline(always)]
 fn is_price_better(buy: bool, prc1: i32, prc2: i32) -> bool {
     if buy {
         prc1 > prc2
@@ -45,7 +45,7 @@ fn get_mid_price(hi: i32, lo: i32, clast: i32) -> i32 {
 
 
 #[allow(dead_code)]
-#[inline]
+#[inline(always)]
 fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
     let ob = orb.book(buy);
     if ob.len() == 0 {
@@ -74,14 +74,14 @@ fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
     fill_qty
 }
 
-#[inline]
+#[inline(always)]
 fn set_fill(deals: &DealPool, ord: &mut Order, vol: u32, price: i32) {
         ord.fill(vol, price);
         deals.push_deal(ord.oid() as u32, price, vol);
         // should pushDeal to mdCache as well
 }
 
-#[inline]
+#[inline(always)]
 fn parse_orderfile(aline: &str) -> Option<(bool, i32, u32)> {
     //info!("send order: {}", aline);
     let v: Vec<&str> = aline.split(',').collect();
@@ -199,7 +199,7 @@ impl MatchEngine {
         }
         Some(ord.oid())
     }
-    #[inline]
+    #[inline(always)]
     pub fn try_match(&mut self, order: &mut Order) -> bool {
         // filled
         let orb = self.book.get_mut(& order.symbol());
