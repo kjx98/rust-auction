@@ -1,8 +1,9 @@
 use std::fmt;
 
 #[derive(PartialEq)]
+#[repr(u8)]
 pub enum State {
-    StateIdle,
+    StateIdle=0,
 	StateStart,
 	StatePreAuction,
 	StateCallAuction,
