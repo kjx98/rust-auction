@@ -40,8 +40,10 @@ impl Measure {
         self.duration / (1000 * 1000)
     }
 
-    pub fn as_s(&self) -> f32 {
-        self.duration as f32 / (1000.0f32 * 1000.0f32 * 1000.0f32)
+    pub fn as_s(&self) -> f64 {
+        //self.duration as f64 / 1_000_000_000.0f64
+        // divid slower than multiply
+        self.duration as f64 * 0.000_000_001f64
     }
 
     /// Measure this function
@@ -117,7 +119,7 @@ mod tests {
         let mut measure = Measure::start("test");
         sleep(Duration::from_secs(1));
         measure.stop();
-        assert!(measure.as_s() >= 0.99f32 && measure.as_s() <= 1.01f32);
+        assert!(measure.as_s() >= 0.99f64 && measure.as_s() <= 1.01f64);
         assert!(measure.as_ms() >= 990 && measure.as_ms() <= 1_010);
         assert!(measure.as_us() >= 999_000 && measure.as_us() <= 1_010_000);
     }
@@ -183,7 +185,7 @@ mod tests {
         // Ensure that the measurement side actually works
         {
             let (_result, measure) = Measure::this(|s| sleep(Duration::from_secs(s)), 1, "test");
-            assert!(measure.as_s() >= 0.99f32 && measure.as_s() <= 1.01f32);
+            assert!(measure.as_s() >= 0.99f64 && measure.as_s() <= 1.01f64);
             assert!(measure.as_ms() >= 990 && measure.as_ms() <= 1_010);
             assert!(measure.as_us() >= 999_000 && measure.as_us() <= 1_010_000);
         }

@@ -101,7 +101,7 @@ mod tests {
         // Ensure that the measurement side actually works
         {
             let (_result, measure) = measure!(sleep(Duration::from_secs(1)), "test");
-            assert!(measure.as_s() >= 0.99f32 && measure.as_s() <= 1.01f32);
+            assert!(measure.as_s() >= 0.99f64 && measure.as_s() <= 1.01f64);
             assert!(measure.as_ms() >= 990 && measure.as_ms() <= 1_010);
             assert!(measure.as_us() >= 999_000 && measure.as_us() <= 1_010_000);
         }
