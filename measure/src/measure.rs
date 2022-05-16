@@ -17,13 +17,13 @@ fn duration_as_ns(d: &Duration) -> u64 {
 }
 
 #[cfg(target_arch = "x86_64")]
-#[allow(dead_code)]
 mod x86 {
     use std::sync::Once;
     static INIT: Once = Once::new();
     static mut DUR_TEST: u64 = 0;
     static mut TICKS_TEST: u64 = 1;
     static mut TICKS_OVERHEAD: u64 = 1_000_000;
+    use std::fmt;
     use std::time::{Instant, Duration};
     use super::duration_as_ns;
 
@@ -69,6 +69,16 @@ mod x86 {
             TICKS_TEST = stop - start;
         }
     }
+    #[allow(dead_code)]
+    pub fn tsc_status() -> String {
+        INIT.call_once(|| {
+            calibration();
+        });
+        let ticks_us: f32 = unsafe {
+                        TICKS_TEST as f32 / DUR_TEST as f32
+        };
+        format!("rdtscp ticks {:.3} per ns", ticks_us)
+    }
 
     pub struct MeasureTsc {
         name: &'static str,
@@ -104,7 +114,24 @@ mod x86 {
             self.duration / (1000 * 1000)
         }
     }
+
+    impl fmt::Display for MeasureTsc {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            if self.duration == 0 {
+                write!(f, "{} running", self.name)
+            } else if self.as_us() < 1 {
+                write!(f, "{} took {}ns", self.name, self.duration)
+            } else if self.as_ms() < 1 {
+                write!(f, "{} took {}us", self.name, self.as_us())
+            } else {
+                write!(f, "{} took {}ms", self.name, self.as_ms())
+            }
+        }
+    }
 }
+
+#[cfg(target_arch = "x86_64")]
+pub use x86::{check_rdtscp, MeasureTsc};
 
 impl Measure {
     pub fn start(name: &'static str) -> Self {
@@ -218,8 +245,10 @@ mod tests {
     #[test]
     #[cfg(target_arch = "x86_64")]
     fn test_measure_tsc() {
-        use super::x86::MeasureTsc;
-        if ! super::x86::check_rdtscp() {
+        use super::{MeasureTsc, x86::tsc_status};
+        if super::x86::check_rdtscp() {
+            println!("tsc status: {}", tsc_status());
+        } else {
             println!("NO rdtscp SUPPORT");
             return
         }
