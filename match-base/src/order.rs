@@ -13,6 +13,7 @@ type Oid = u64;
 
 //#[repr(align(16))]
 #[derive(Eq, Clone, Default)]
+#[non_exhaustive]
 pub struct Order {
     id:     Oid,
     price:  i32,

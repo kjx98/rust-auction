@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 #[derive(PartialEq)]
+#[non_exhaustive]
 pub struct Symbol {
     name:   String,
     idx:    u32,

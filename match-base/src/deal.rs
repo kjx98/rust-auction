@@ -7,6 +7,7 @@ use {
 // mid ... match id u32 as well
 // oid ... order id u32
 #[derive(Eq, Clone, Default)]
+#[non_exhaustive]
 pub struct Deal {
     no:     u64,
     mid:    u32,
