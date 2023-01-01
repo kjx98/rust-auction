@@ -58,6 +58,7 @@ impl OrderBook {
     pub fn len(&self) -> (usize, usize) {
         (self.bids.len(), self.asks.len())
     }
+    #[cfg(not(feature = "btree_maple"))]
     pub fn retain(&mut self, buy: bool, okey: OrderKey) {
         let ord = okey.get().unwrap();
         let key = ord.to_OidPrice();

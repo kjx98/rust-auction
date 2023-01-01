@@ -19,3 +19,8 @@ rand = "0.4"
 version = "2.1"
 default-features = false
 features = ["timestamps", "colors"]
+
+
+[features]
+default = [ "btree_maple" ]
+btree_maple = []

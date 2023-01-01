@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 use log::{error, info, warn};
 use measure::Measure;
+#[cfg(not(feature = "btree_maple"))]
 use match_base::{Order, OrderKey, OrderPool, DealPool, Symbols};
+#[cfg(feature = "btree_maple")]
+use match_base::{Order, OrderPool, DealPool, Symbols};
 use crate::{state::State, order_book::OrderBook};
 
 pub struct MatchEngine {
@@ -44,6 +47,7 @@ fn get_mid_price(hi: i32, lo: i32, clast: i32) -> i32 {
 }
 
 
+#[cfg(not(feature = "btree_maple"))]
 #[allow(dead_code)]
 #[inline(always)]
 fn get_match_qty(orb: &OrderBook, buy: bool, prc: i32, qty: u32) -> u32 {
@@ -199,6 +203,7 @@ impl MatchEngine {
         }
         Some(ord.oid())
     }
+    #[cfg(not(feature = "btree_maple"))]
     #[inline(always)]
     pub fn try_match(&mut self, order: &mut Order) -> bool {
         // filled
@@ -235,6 +240,42 @@ impl MatchEngine {
         }
         qty == 0
     }
+    #[cfg(feature = "btree_maple")]
+    #[inline(always)]
+    pub fn try_match(&mut self, order: &mut Order) -> bool {
+        // filled
+        let orb = self.book.get_mut(& order.symbol());
+        if orb == None {
+            return false
+        }
+        let orb = orb.unwrap();
+        let buy = order.is_buy();
+        if orb.book(!buy).len() == 0 {
+            return false
+        }
+        let prc = order.price();
+        let mut qty = order.remain_qty();
+        while let Some(or_entry) = orb.book_mut(!buy).first_entry() {
+            let orv = or_entry.get().get_mut().unwrap();
+            if may_match(buy, prc, orv.price()) {
+                // fill
+                let fill_qty = if qty > orv.remain_qty()
+                                { orv.remain_qty() } else { qty };
+                DealPool::new_match();  // increase match no
+                set_fill(& self.deals, orv, fill_qty, prc);
+                set_fill(& self.deals, order, fill_qty, prc);
+                //ord.fill(fill_qty, last);
+                //self.deals.push_deal(ord.oid() as u32, last, fill_qty);
+                qty -= fill_qty;
+                if orv.is_filled() {
+                    or_entry.remove_entry();
+                } else {
+                    break
+                };
+            } else { break }
+        }
+        qty == 0
+    }
     pub fn book(&self, sym: u32) -> Option<&OrderBook> {
         self.book.get(&sym)
     }
@@ -258,6 +299,40 @@ impl MatchEngine {
         println!("After uncross qlen: {}/{}", blen, alen);
         true
     }
+    #[cfg(feature = "btree_maple")]
+    fn uncross_side(&mut self, sym: u32, buy: bool, last: i32, qty: u32)
+    -> bool {
+        if let Some(orb) = self.book.get_mut(&sym) {
+            let (blen, alen) = orb.len();
+            info!("before uncross qlen: {}/{}", blen, alen);
+            let mut sum: u32 = qty;
+            while let Some(or_entry) = orb.book_mut(!buy).first_entry() {
+                let ord = or_entry.get().get_mut().unwrap();
+                if may_match(buy, last, ord.price()) {
+                    // fill
+                    let fill_qty = if sum >= ord.remain_qty()
+                                { ord.remain_qty() } else { sum };
+                    sum -= fill_qty;
+                    //ord.fill(fill_qty, last);
+                    //self.deals.push_deal(ord.oid() as u32, last, fill_qty);
+                    set_fill(& self.deals, ord, fill_qty, last);
+                    if ord.is_filled() {
+                        or_entry.remove_entry();
+                    } else { break }
+                    if sum == 0 {
+                        break
+                    }
+                } else {
+                    break
+                }
+            }
+            sum == 0
+        } else {
+            error!("orderbook for symbol({}) NOT FOUND", sym);
+            false
+        }
+    }
+    #[cfg(not(feature = "btree_maple"))]
     fn uncross_side(&mut self, sym: u32, buy: bool, last: i32, qty: u32)
     -> bool {
         if let Some(orb) = self.book.get_mut(&sym) {
